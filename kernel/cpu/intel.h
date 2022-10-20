@@ -79,6 +79,12 @@ typedef struct __attribute__((packed)) {
 void IntelInitialize(uint64_t kernel_stack);
 void IntelRemapPic(void);
 
-__attribute__((no_caller_saved_registers)) uint8_t IoIn(uint16_t port);
-__attribute__((no_caller_saved_registers)) void IoOut(uint16_t port, uint8_t val);
-__attribute__((no_caller_saved_registers)) void IoWait(void);
+uint8_t IoIn8(uint16_t port);
+uint16_t IoIn16(uint16_t port);
+uint32_t IoIn32(uint16_t port);
+
+void IoOut8(uint16_t port, uint8_t val);
+void IoOut16(uint16_t port, uint16_t val);
+void IoOut32(uint16_t port, uint32_t val);
+
+void IoWait(void);

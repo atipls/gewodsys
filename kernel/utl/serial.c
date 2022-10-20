@@ -5,9 +5,9 @@
 #include "serial.h"
 
 void ComPutChar(char c) {
-    while (!(IoIn(0x3F8 + 5) & 0x20))
+    while (!(IoIn8(0x3F8 + 5) & 0x20))
         ;
-    IoOut(0x3F8, c);
+    IoOut8(0x3F8, c);
 }
 
 void ComPrint(const char *fmt, ...) {

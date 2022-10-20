@@ -4,6 +4,8 @@
 
 #include "limine.h"
 #include <cpu/intel.h>
+#include <cpu/acpi.h>
+
 #include <mem/memory.h>
 #include <utl/serial.h>
 
@@ -48,10 +50,9 @@ void KeMain(void) {
     ComPrint("[KERNEL] Primary core started.\n", stack);
 
     IntelInitialize(stack);
-
     MmInitialize(memmap_request.response);
-    DskInitialize();
-
+    AcpiInitialize();
+    // TskInitialize();
 
 #if 1
     // Start up the other cores

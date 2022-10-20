@@ -98,9 +98,9 @@ __attribute__((no_caller_saved_registers)) static void IsrPicEoi(unsigned char i
     ComPrint("IsrPicEoi: irq=%d \n", irq);
 
     if (irq >= 8)
-        IoOut(PIC2_COMMAND, PIC_EOI);
+        IoOut8(PIC2_COMMAND, PIC_EOI);
 
-    IoOut(PIC1_COMMAND, PIC_EOI);
+    IoOut8(PIC1_COMMAND, PIC_EOI);
 }
 
 __attribute__((interrupt)) static void IsrPicHandler0(CpuContext *ctx) {
@@ -115,7 +115,7 @@ __attribute__((interrupt)) static void IsrPicHandler1(CpuContext *ctx) {
     (void) ctx;
     IsrPicEoi(1);
 
-    uint8_t state = IoIn(0x60);
+    uint8_t state = IoIn8(0x60);
     uint8_t scancode = state & 0x7F;
     uint8_t pressed = !(state & 0x80);
 
@@ -197,34 +197,34 @@ __attribute__((interrupt)) static void IsrPicHandler15(CpuContext *ctx) {
 void IntelRemapPic(void) {
     uint8_t a1, a2;
 
-    a1 = IoIn(PIC1_DATA);
+    a1 = IoIn8(PIC1_DATA);
     IoWait();
-    a2 = IoIn(PIC2_DATA);
-    IoWait();
-
-    IoOut(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
-    IoWait();
-    IoOut(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
+    a2 = IoIn8(PIC2_DATA);
     IoWait();
 
-    IoOut(PIC1_DATA, 0x20);
+    IoOut8(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
     IoWait();
-    IoOut(PIC2_DATA, 0x28);
-    IoWait();
-
-    IoOut(PIC1_DATA, 4);
-    IoWait();
-    IoOut(PIC2_DATA, 2);
+    IoOut8(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
     IoWait();
 
-    IoOut(PIC1_DATA, ICW4_8086);
+    IoOut8(PIC1_DATA, 0x20);
     IoWait();
-    IoOut(PIC2_DATA, ICW4_8086);
+    IoOut8(PIC2_DATA, 0x28);
     IoWait();
 
-    IoOut(PIC1_DATA, a1);
+    IoOut8(PIC1_DATA, 4);
     IoWait();
-    IoOut(PIC2_DATA, a2);
+    IoOut8(PIC2_DATA, 2);
+    IoWait();
+
+    IoOut8(PIC1_DATA, ICW4_8086);
+    IoWait();
+    IoOut8(PIC2_DATA, ICW4_8086);
+    IoWait();
+
+    IoOut8(PIC1_DATA, a1);
+    IoWait();
+    IoOut8(PIC2_DATA, a2);
 }
 
 void *kIntelIsrTable[32] = {
