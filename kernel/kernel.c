@@ -44,13 +44,9 @@ void KeMain(void) {
 
     IntelInitialize(stack);
     MmInitialize(memmap_request.response);
-    MmInitializePaging();
-
-    while(1) {
-        __asm__ volatile("hlt");
-    }
-
+    MmInitializePaging(memmap_request.response);
     AcpiInitialize();
+
 
     // TskInitialize();
 

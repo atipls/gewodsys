@@ -2,6 +2,7 @@
 
 #include <cpu/acpi.h>
 #include <stdint.h>
+#include <limine.h>
 
 typedef struct {
     uint8_t present : 1;
@@ -21,7 +22,14 @@ typedef struct __attribute__((aligned(0x1000))) {
     PageDirectoryEntry pde[512];
 } PageTable;
 
-void MmInitializePaging(void);
+enum {
+    kPagePresent = 1 << 0,
+    kPageReadWrite = 1 << 1,
+    kPageWriteThrough = 1 << 3,
+    kPageDisableCache = 1 << 4,
+};
+
+void MmInitializePaging(struct limine_memmap_response *memmap);
 
 uint64_t MmMapToVirtual(uint64_t physical_address, uint64_t size);
 

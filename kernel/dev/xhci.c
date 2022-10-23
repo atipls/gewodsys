@@ -1,6 +1,8 @@
 #include "xhci.h"
 
 #include <utl/serial.h>
+#include <mem/memory.h>
+#include <mem/paging.h>
 
 static uint8_t XhciTryProbe(PciDevice *device) {
     uint8_t is_qemu_pci = device->vendor_id == 0x1B36 && device->device_id == 0x000D;

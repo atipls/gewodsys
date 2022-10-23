@@ -1,5 +1,6 @@
 #include "paging.h"
 #include "memory.h"
+#include <utl/serial.h>
 
 static uint64_t MmGetPi(uint64_t virtual_address) { return (virtual_address >> 12) & 0x1FF; }
 static uint64_t MmGetPt(uint64_t virtual_address) { return (virtual_address >> 21) & 0x1FF; }
@@ -19,7 +20,7 @@ extern uint64_t kDataStart, kDataEnd;
 
 extern uint64_t kKernelSize;
 
-void MmInitializePaging(void) {
+void MmInitializePaging(struct limine_memmap_response *memmap) {
     kPML4 = MmAllocate(sizeof(PageTable));
     MmZeroMemory(kPML4, sizeof(PageTable));
 
@@ -30,10 +31,39 @@ void MmInitializePaging(void) {
     ComPrint("Kernel data: 0x%X - 0x%X\n", &kDataStart, &kDataEnd);
     ComPrint("Kernel size: 0x%X\n", &kKernelSize);
 
-    while (1) __asm__("hlt");
+    ComPrint("Kernel address: 0x%X\n", kernel_address->physical_base);
+
+    for (uint64_t entry_index = 0; entry_index < memmap->entry_count; entry_index++) {
+        const struct limine_memmap_entry *entry = memmap->entries[entry_index];
+        uintptr_t address = entry->base;
+        if (entry->type == LIMINE_MEMMAP_USABLE || entry->type == LIMINE_MEMMAP_FRAMEBUFFER) {
+            for (uint64_t offset = 0; offset < entry->length;) {
+                if (address & 0xFFF) {
+                    address &= 0xFFFFFFFFFFFFF000;
+                    MmMapPage(address + offset + 0xFFFF800000000000, address + offset, kPagePresent | kPageReadWrite);
+                } else {
+                    MmMapPage(address + offset + 0xFFFF800000000000, address + offset, kPagePresent | kPageReadWrite);
+                    offset += 0x1000;
+                }
+            }
+        }
+    }
+
+    for (uint64_t i = 0; i < 0x100000000; i += 0x1000) {
+        MmMapPage(0xFFFF800000000000 + i, i, kPagePresent | kPageReadWrite);
+    }
+
+    for (uint64_t i = 0; i < 0x7000; i += 0x1000) {
+        MmMapPage(
+                kernel_address->virtual_base + i,
+                kernel_address->physical_base + i,
+                kPagePresent | kPageReadWrite);
+    }
 
 
-    __asm__ volatile("mov %0, %%cr3" ::"r"(kPML4)
+    ComPrint("[MM]: PML4: 0x%X, enabling paging.\n", kPML4);
+
+    __asm__ volatile("mov %%cr3, %0" ::"r"(kPML4)
                      : "memory");
 
     ComPrint("[MM]: Paging initialized.\n");
@@ -43,7 +73,7 @@ uint64_t MmMapToVirtual(uint64_t physical_address, uint64_t size) {
     uint64_t virtual_address = (uint64_t) MmAllocate(size);
     uint64_t virtual_address_start = virtual_address;
     while (virtual_address < virtual_address_start + size) {
-        MmMapPage(virtual_address, physical_address, 0);
+        MmMapPage(virtual_address, physical_address, kPageDisableCache | kPageWriteThrough);
         virtual_address += 0x1000;
         physical_address += 0x1000;
     }
@@ -51,87 +81,56 @@ uint64_t MmMapToVirtual(uint64_t physical_address, uint64_t size) {
 }
 
 uint64_t MmGetPhysicalAddress(uint64_t virtual_address) {
-    PageDirectoryEntry *pdp_entry = &kPML4->pde[MmGetPdp(virtual_address)];
-    if (!pdp_entry->present)
-        return 0;
-
-    PageTable *pd_table = (PageTable *) (pdp_entry->address << 12);
-    PageDirectoryEntry *pd_entry = &pd_table->pde[MmGetPd(virtual_address)];
-    if (!pd_entry->present)
-        return 0;
-
-    PageTable *pt_table = (PageTable *) (pd_entry->address << 12);
-    PageDirectoryEntry *pt_entry = &pt_table->pde[MmGetPt(virtual_address)];
-    if (!pt_entry->present)
-        return 0;
-
-    PageTable *pi_table = (PageTable *) (pt_entry->address << 12);
-    PageDirectoryEntry *pi_entry = &pi_table->pde[MmGetPi(virtual_address)];
-    if (!pi_entry->present)
-        return 0;
-
-    return pi_entry->address << 12;
+    PageTable *pdp = (PageTable *) (uintptr_t) kPML4->pde[MmGetPdp(virtual_address)].address;
+    PageTable *pd = (PageTable *) (uintptr_t) pdp->pde[MmGetPd(virtual_address)].address;
+    PageTable *pt = (PageTable *) (uintptr_t) pd->pde[MmGetPt(virtual_address)].address;
+    return pt->pde[MmGetPi(virtual_address)].address;
 }
 
 void MmUnmapVirtual(uint64_t virtual_address, uint64_t size) {
-    uint64_t virtual_address_start = virtual_address;
-    while (virtual_address < virtual_address_start + size) {
-        PageDirectoryEntry *pdp_entry = &kPML4->pde[MmGetPdp(virtual_address)];
-        if (!pdp_entry->present)
-            return;
-
-        PageTable *pd_table = (PageTable *) (pdp_entry->address << 12);
-        PageDirectoryEntry *pd_entry = &pd_table->pde[MmGetPd(virtual_address)];
-        if (!pd_entry->present)
-            return;
-
-        PageTable *pt_table = (PageTable *) (pd_entry->address << 12);
-        PageDirectoryEntry *pt_entry = &pt_table->pde[MmGetPt(virtual_address)];
-        if (!pt_entry->present)
-            return;
-
-        PageTable *pi_table = (PageTable *) (pt_entry->address << 12);
-        PageDirectoryEntry *pi_entry = &pi_table->pde[MmGetPi(virtual_address)];
-        if (!pi_entry->present)
-            return;
-
-        pi_entry->present = 0;
-        virtual_address += 0x1000;
-    }
+    (void) virtual_address;
+    (void) size;
 }
 
 void MmMapPage(uint64_t virtual_address, uint64_t physical_address, uint64_t flags) {
-    (void) flags;
-    PageDirectoryEntry *pdp = &kPML4->pde[MmGetPdp(virtual_address)];
-    if (!pdp->present) {
-        pdp->present = 1;
-        pdp->read_write = 1;
-        pdp->address = (uint64_t) MmAllocate(sizeof(PageTable)) >> 12;
+    //ComPrint("[MM] Mapping Physical 0x%X to Virtual 0x%X\n", physical_address, virtual_address);
+
+    PageTable *pdp = (PageTable *) (uintptr_t) kPML4->pde[MmGetPdp(virtual_address)].address;
+    if (!pdp) {
+        pdp = MmAllocate(sizeof(PageTable));
+        MmZeroMemory(pdp, sizeof(PageTable));
+        PageDirectoryEntry *pdp_entry = &kPML4->pde[MmGetPdp(virtual_address)];
+        pdp_entry->address = (uint64_t) pdp;
+        pdp_entry->present = 1;
+        pdp_entry->read_write = 1;
     }
 
-    PageTable *pd = (PageTable *) (pdp->address << 12);
-    PageDirectoryEntry *pde = &pd->pde[MmGetPd(virtual_address)];
-
-    if (!pde->present) {
-        pde->present = 1;
-        pde->read_write = 1;
-        pde->address = (uint64_t) MmAllocate(sizeof(PageTable)) >> 12;
+    PageTable *pd = (PageTable *) (uintptr_t) pdp->pde[MmGetPd(virtual_address)].address;
+    if (!pd) {
+        pd = MmAllocate(sizeof(PageTable));
+        MmZeroMemory(pd, sizeof(PageTable));
+        PageDirectoryEntry *pd_entry = &pdp->pde[MmGetPd(virtual_address)];
+        pd_entry->address = (uint64_t) pd;
+        pd_entry->present = 1;
+        pd_entry->read_write = 1;
     }
 
-    PageTable *pt = (PageTable *) (pde->address << 12);
-    PageDirectoryEntry *pte = &pt->pde[MmGetPt(virtual_address)];
-
-    if (!pte->present) {
-        pte->present = 1;
-        pte->read_write = 1;
-        pte->address = (uint64_t) MmAllocate(sizeof(PageTable)) >> 12;
+    PageTable *pt = (PageTable *) (uintptr_t) pd->pde[MmGetPt(virtual_address)].address;
+    if (!pt) {
+        pt = MmAllocate(sizeof(PageTable));
+        MmZeroMemory(pt, sizeof(PageTable));
+        PageDirectoryEntry *pt_entry = &pd->pde[MmGetPt(virtual_address)];
+        pt_entry->address = (uint64_t) pt;
+        pt_entry->present = 1;
+        pt_entry->read_write = 1;
     }
 
-    PageTable *pi = (PageTable *) (pte->address << 12);
-    PageDirectoryEntry *pie = &pi->pde[MmGetPi(virtual_address)];
-    if (!pie->present) {
-        pie->present = 1;
-        pie->read_write = 1;
-        pie->address = physical_address >> 12;
-    }
+    PageDirectoryEntry *pi_entry = &pt->pde[MmGetPi(virtual_address)];
+    pi_entry->address = physical_address;
+    pi_entry->present = 1;
+    pi_entry->read_write = 1;
+    if (flags & kPageDisableCache)
+        pi_entry->disable_cache = 1;
+    if (flags & kPageWriteThrough)
+        pi_entry->write_through = 1;
 }

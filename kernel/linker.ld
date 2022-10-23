@@ -22,7 +22,7 @@ SECTIONS
     } :text
     kTextEnd = .;
 
-    . += CONSTANT(MAXPAGESIZE);
+    . = ALIGN(0x1000);
 
     kRodataStart = .;
     .rodata : {
@@ -30,7 +30,7 @@ SECTIONS
     } :rodata
     kRodataEnd = .;
 
-    . += CONSTANT(MAXPAGESIZE);
+    . = ALIGN(0x1000);
 
     kDataStart = .;
     .data : {
@@ -39,6 +39,8 @@ SECTIONS
     kDataEnd = .;
 
     kKernelSize = . - kKernelStart;
+
+    . = ALIGN(0x1000);
 
     .bss : {
         *(COMMON)
