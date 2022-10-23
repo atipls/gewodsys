@@ -1,4 +1,4 @@
-QEMU_OPTIONS = -M q35 -m 4G -smp 4 -serial stdio -d cpu_reset -device usb-ehci,id=ehci -device usb-tablet,bus=ehci.0,port=1
+QEMU_OPTIONS = -M q35 -m 128M -smp 4 -serial stdio -d cpu_reset -d int -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0,port=1
 PROJECT_NAME = gewodsys
 
 .PHONY: all

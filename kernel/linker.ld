@@ -14,21 +14,31 @@ SECTIONS
 {
     . = 0xffffffff80000000;
 
+    kKernelStart = .;
+
+    kTextStart = .;
     .text : {
         *(.text .text.*)
     } :text
+    kTextEnd = .;
 
     . += CONSTANT(MAXPAGESIZE);
 
+    kRodataStart = .;
     .rodata : {
         *(.rodata .rodata.*)
     } :rodata
+    kRodataEnd = .;
 
     . += CONSTANT(MAXPAGESIZE);
 
+    kDataStart = .;
     .data : {
         *(.data .data.*)
     } :data
+    kDataEnd = .;
+
+    kKernelSize = . - kKernelStart;
 
     .bss : {
         *(COMMON)

@@ -17,6 +17,74 @@ static MemoryStatistics kMemoryStatistics;
 
 static Bitmap kMemoryBitmap;
 
+void MmZeroMemory(void *address, uint64_t size) {
+    uint64_t *ptr64 = (uint64_t *) address;
+    while (size >= 8) {
+        *ptr64 = 0;
+        ptr64++;
+        size -= 8;
+    }
+
+    uint32_t *ptr32 = (uint32_t *) ptr64;
+    while (size >= 4) {
+        *ptr32 = 0;
+        ptr32++;
+        size -= 4;
+    }
+
+    uint16_t *ptr16 = (uint16_t *) ptr32;
+    while (size >= 2) {
+        *ptr16 = 0;
+        ptr16++;
+        size -= 2;
+    }
+
+    uint8_t *ptr8 = (uint8_t *) ptr16;
+    while (size >= 1) {
+        *ptr8 = 0;
+        ptr8++;
+        size -= 1;
+    }
+}
+
+void MmCopyMemory(void *destination, void *source, uint64_t size) {
+    uint64_t *ptr64 = (uint64_t *) destination;
+    uint64_t *ptr64_source = (uint64_t *) source;
+    while (size >= 8) {
+        *ptr64 = *ptr64_source;
+        ptr64++;
+        ptr64_source++;
+        size -= 8;
+    }
+
+    uint32_t *ptr32 = (uint32_t *) ptr64;
+    uint32_t *ptr32_source = (uint32_t *) ptr64_source;
+    while (size >= 4) {
+        *ptr32 = *ptr32_source;
+        ptr32++;
+        ptr32_source++;
+        size -= 4;
+    }
+
+    uint16_t *ptr16 = (uint16_t *) ptr32;
+    uint16_t *ptr16_source = (uint16_t *) ptr32_source;
+    while (size >= 2) {
+        *ptr16 = *ptr16_source;
+        ptr16++;
+        ptr16_source++;
+        size -= 2;
+    }
+
+    uint8_t *ptr8 = (uint8_t *) ptr16;
+    uint8_t *ptr8_source = (uint8_t *) ptr16_source;
+    while (size >= 1) {
+        *ptr8 = *ptr8_source;
+        ptr8++;
+        ptr8_source++;
+        size -= 1;
+    }
+}
+
 void MmInitialize(struct limine_memmap_response *memmap) {
     static const char *const LIMINE_MEMORY_TYPES[] = {
             "USABLE",
@@ -37,7 +105,6 @@ void MmInitialize(struct limine_memmap_response *memmap) {
         ComPrint("[MM]: MMAP: 0x%X - 0x%X  type %s\n", entry->base,
                  entry->base + entry->length,
                  LIMINE_MEMORY_TYPES[entry->type]);
-
         if (entry->type == LIMINE_MEMMAP_USABLE && (!largest || entry->length > largest->length))
             largest = entry;
 

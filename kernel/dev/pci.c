@@ -3,18 +3,58 @@
 #include <cpu/intel.h>
 #include <utl/serial.h>
 
+#include "xhci.h"
 
+PciDriver *kPciDrivers[] = {
+        &kXhciDriver,
+};
 
-static uint16_t PciReadWord(uint16_t bus, uint16_t device, uint16_t function, uint16_t offset) {
-    uint32_t address = (uint32_t) (1 << 31) | (bus << 16) | (device << 11) | (function << 8) | (offset & 0xfc);
-    IoOut32(0xcf8, address);
-    return IoIn16(0xcfc + (offset & 2));
+PciDriver kLoadedPciDrivers[256];
+uint8_t kLoadedPciDriverCount = 0;
+
+#define PCI_CONFIG_ADDRESS 0xCF8
+#define PCI_CONFIG_DATA 0xCFC
+
+uint16_t PciRead16(PciDevice *device, uint8_t offset) {
+    uint32_t address = (1 << 31) | (device->bus << 16) | (device->device << 11) | (device->function << 8) | (offset & 0xFC);
+    IoOut32(PCI_CONFIG_ADDRESS, address);
+    return (uint16_t) ((IoIn32(PCI_CONFIG_DATA) >> ((offset & 2) * 8)) & 0xffff);
 }
 
-static uint32_t PciReadDword(uint16_t bus, uint16_t device, uint16_t function, uint16_t offset) {
-    uint32_t address = (uint32_t) (1 << 31) | (bus << 16) | (device << 11) | (function << 8) | (offset & 0xfc);
-    IoOut32(0xcf8, address);
-    return IoIn32(0xcfc);
+uint32_t PciRead32(PciDevice *device, uint8_t offset) {
+    uint16_t low = PciRead16(device, offset);
+    uint16_t high = PciRead16(device, offset + 2);
+    return (high << 16) | low;
+}
+
+void PciWrite16(PciDevice *device, uint8_t offset, uint16_t value) {
+    uint32_t address = (1 << 31) | (device->bus << 16) | (device->device << 11) | (device->function << 8) | (offset & 0xFC);
+    IoOut32(PCI_CONFIG_ADDRESS, address);
+    IoOut32(PCI_CONFIG_DATA, value);
+}
+
+void PciWrite32(PciDevice *device, uint8_t offset, uint32_t value) {
+    PciWrite16(device, offset, (uint16_t) (value & 0xFFFF));
+    PciWrite16(device, offset + 2, (uint16_t) (value >> 16) & 0xFFFF);
+}
+
+void PciGetBar(PciDevice *device, uint32_t bar, uint64_t *address) {
+    uint16_t bar_address = 0x10 + (bar * 4);
+    uint32_t bar_value = PciRead32(device, bar_address);
+
+    if (bar_value & 0x1) {
+        *address = bar_value & 0xFFFFFFFC;
+    } else {
+        *address = bar_value & 0xFFFFFFF0;
+    }
+
+    if (bar_value & 0x4) {
+        uint32_t bar_value_upper = PciRead32(device, bar_address + 4);
+        *address |= ((uint64_t) bar_value_upper) << 32;
+    }
+
+    ComPrint("[PCI]: BAR %d: %X", bar, *address);
+
 }
 
 static const char *PciDeviceClasses[] = {
@@ -37,7 +77,8 @@ static const char *PciDeviceClasses[] = {
         "Encryption Controller",
         "Signal Processing Controller",
         "Processing Accelerator",
-        "Non Essential Instrumentation"};
+        "Non Essential Instrumentation",
+};
 
 static const char *PciGetVendorName(uint16_t vendor_id) {
     switch (vendor_id) {
@@ -63,14 +104,32 @@ static const char *PciGetDeviceName(uint16_t vendor_id, uint16_t device_id) {
                 case 0x2922: return "ICH9 SATA AHCI Controller driver";
                 case 0x2930: return "82801I (ICH9 Family) SMBus Controller";
                 case 0x24CD: return "82801DB/DBM (ICH4/ICH4-M) USB2 EHCI Controller";
+                case 0x2280: return "Atom SoC Transaction Register";
+                case 0x22B0: return "Atom Integrated Graphics Controller";
+                case 0x22B8: return "Atom Imaging Unit";
+                case 0x22D8: return "Atom Integrated Sensor Hub";
+                case 0x22DC: return "Atom Power Management Controller";
+                case 0x22B5: return "Atom USB xHCI Controller";
+                case 0x2298: return "Atom Trusted Execution Engine";
+                case 0x22C8: return "Atom PCI Express Port #1";
+                case 0x229C: return "Atom Package Control Unit";
                 default:
                     ComPrint("Unknown Intel device: %x\n", device_id);
                     return "Unknown";
             }
         case 0x1234:
             switch (device_id) {
-                case 0x1111: return "Bochs Graphics Adapter";
-                default: return "Unknown";
+                case 0x1111: return "Graphics Adapter";
+                default:
+                    ComPrint("Unknown bochs device: %x\n", device_id);
+                    return "Unknown";
+            }
+        case 0x1b36:
+            switch (device_id) {
+                case 0x000D: return "XHCI Host Controller";
+                default:
+                    ComPrint("Unknown qemu device: %x\n", device_id);
+                    return "Unknown";
             }
         default: return "Unknown";
     }
@@ -82,19 +141,61 @@ void PciInitialize(AcpiMcfg *mcfg) {
     for (uint16_t bus = mcfg->start_bus_number; bus <= mcfg->end_bus_number; bus++) {
         for (uint16_t device = 0; device < 32; device++) {
             for (uint16_t function = 0; function < 8; function++) {
-                uint16_t vendor_id = PciReadWord(bus, device, function, 0);
-                if (vendor_id == 0xFFFF)
+                PciDevice pci_device = {
+                        .bus = bus,
+                        .device = device,
+                        .function = function,
+                };
+
+                pci_device.vendor_id = PciRead16(&pci_device, 0);
+                if (pci_device.vendor_id == 0xFFFF)
                     continue;
 
-                uint16_t device_id = PciReadWord(bus, device, function, 2);
-                uint16_t class_code = PciReadWord(bus, device, function, 10);
+                pci_device.device_id = PciRead16(&pci_device, 2);
+                uint16_t class_code = PciRead16(&pci_device, 10);
 
-                uint8_t class = class_code >> 8;
-                uint8_t subclass = (class_code >> 4) & 0xF;
-                uint8_t prog_if = class_code & 0xF;
+                pci_device.class_code = class_code >> 8;
+                pci_device.subclass_code = (class_code >> 4) & 0xF;
+                pci_device.interface_code = class_code & 0xF;
 
-                ComPrint("[ACPI]   %d:%d:%d: %s %s [%s]\n", bus, device, function, PciGetVendorName(vendor_id), PciGetDeviceName(vendor_id, device_id), PciDeviceClasses[class]);
+                ComPrint("[ACPI]   %d:%d:%d: %s %s [%s]\n",
+                         pci_device.bus, pci_device.device, pci_device.function,
+                         PciGetVendorName(pci_device.vendor_id),
+                         PciGetDeviceName(pci_device.vendor_id, pci_device.device_id),
+                         PciDeviceClasses[pci_device.class_code]);
+
+                for (int i = 0; i < sizeof(kPciDrivers) / sizeof(PciDriver *); i++) {
+                    PciDriver *driver = kPciDrivers[i];
+                    if (!driver->try_probe(&pci_device))
+                        continue;
+                    ComPrint("[ACPI]    Loading driver %s\n", driver->name);
+                    kLoadedPciDrivers[kLoadedPciDriverCount++] = *driver;
+
+                    PciDriver *loaded_driver = &kLoadedPciDrivers[kLoadedPciDriverCount - 1];
+                    loaded_driver->device = pci_device;
+                    loaded_driver->initialize(loaded_driver);
+
+                    break;
+                }
             }
         }
     }
+}
+
+void PciMaybeEnableBusMastering(PciDevice *device) {
+    uint16_t command = PciRead16(device, 4);
+    if (command & (1 << 2))
+        return;
+
+    command |= (1 << 2);
+    PciWrite16(device, 4, command);
+}
+
+void PciMaybeEnableMemoryAccess(PciDevice *device) {
+    uint16_t command = PciRead16(device, 4);
+    if (command & (1 << 1))
+        return;
+
+    command |= (1 << 1);
+    PciWrite16(device, 4, command);
 }

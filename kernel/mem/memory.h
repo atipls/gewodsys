@@ -1,10 +1,13 @@
 #pragma once
 
 #include <limine.h>
+#include <stdint.h>
 
 #define PAGE_SIZE 4096
 #define KERNEL_MEMORY_SIZE 256 * 1024 * 1024
 
+void MmZeroMemory(void *address, uint64_t size);
+void MmCopyMemory(void *destination, void *source, uint64_t size);
 
 void MmInitialize(struct limine_memmap_response *memmap);
 

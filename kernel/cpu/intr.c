@@ -51,6 +51,15 @@ static char *kIsrNames[] = {
 __attribute__((no_caller_saved_registers)) static void IsrGenericHandler(CpuContext *ctx, uint32_t isr_number) {
     ComPrint("Unhandled interrupt: %s\n", kIsrNames[isr_number]);
 
+    if (isr_number == 14) {
+        uint64_t cr2;
+        __asm__ volatile("mov %%cr2, %0" : "=r"(cr2));
+        ComPrint("Page fault at address: %X\n", cr2);
+
+        uint64_t error_code = ctx->rax;
+        ComPrint("Error code: %X\n", error_code);
+    }
+
     ComPrint("RAX: 0x%X  RBX: 0x%X  RCX: 0x%X  RDX: 0x%X\n", ctx->rax, ctx->rbx, ctx->rcx, ctx->rdx);
     ComPrint("RSI: 0x%X  RDI: 0x%X  RBP: 0x%X  R8: 0x%X\n", ctx->rsi, ctx->rdi, ctx->rbp, ctx->r8);
     ComPrint("R9: 0x%X  R10: 0x%X  R11: 0x%X  R12: 0x%X\n", ctx->r9, ctx->r10, ctx->r11, ctx->r12);

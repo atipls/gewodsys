@@ -4,10 +4,22 @@
 #include <cpu/intel.h>
 #include "serial.h"
 
+#include <limine.h>
+
+static volatile struct limine_terminal_request terminal_request = {
+    .id = LIMINE_TERMINAL_REQUEST,
+    .revision = 1,
+};
+
 void ComPutChar(char c) {
     while (!(IoIn8(0x3F8 + 5) & 0x20))
         ;
     IoOut8(0x3F8, c);
+
+    if (terminal_request.response) {
+        limine_terminal_write write = terminal_request.response->write;
+        write(terminal_request.response->terminals[0], &c, 1);
+    }
 }
 
 void ComPrint(const char *fmt, ...) {
