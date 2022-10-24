@@ -47,13 +47,14 @@ void KeMain(void) {
     MmInitializePaging(memmap_request.response);
     AcpiInitialize();
 
-
     // TskInitialize();
 
     // Start up the other cores
-    struct limine_smp_response *smp = smp_request.response;
-    for (size_t i = 0; i < smp->cpu_count; i++)
-        smp->cpus[i]->goto_address = KeSMPMain;
+    if(0) {
+        struct limine_smp_response *smp = smp_request.response;
+        for (size_t i = 0; i < smp->cpu_count; i++)
+            smp->cpus[i]->goto_address = KeSMPMain;
+    }
 
     ComPrint("[KERNEL] Total memory: %d KiB.\n", MmGetTotalMemory() / 1024);
     ComPrint("[KERNEL] Free memory: %d KiB.\n", MmGetFreeMemory() / 1024);

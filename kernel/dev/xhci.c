@@ -1,8 +1,8 @@
 #include "xhci.h"
 
-#include <utl/serial.h>
 #include <mem/memory.h>
 #include <mem/paging.h>
+#include <utl/serial.h>
 
 static uint8_t XhciTryProbe(PciDevice *device) {
     uint8_t is_qemu_pci = device->vendor_id == 0x1B36 && device->device_id == 0x000D;
@@ -21,10 +21,31 @@ static void XhciInitialize(PciDriver *driver) {
         mmio_base_physical |= (uint64_t) PciRead32(&driver->device, 0x14) << 32;
     mmio_base_physical &= ~0xF;
 
-    uint64_t mmio_base = MmMapToVirtual(mmio_base_physical, 0x1000);
+    uint64_t mmio_base = MmMapToVirtual(mmio_base_physical, 0x4000);
 
-    ComPrint("[XHCI]: MMIO base: %X\n", mmio_base);
-    ComPrint("[XHCI]: Reading: %X\n", *(uint32_t *) mmio_base);
+    ComPrint("[XHCI]: MMIO base: 0x%X (Physical: 0x%X)\n", mmio_base, mmio_base_physical);
+
+    XhciCapabilityRegisters *volatile reg_cap = (XhciCapabilityRegisters *volatile) mmio_base;
+    XhciOperationalRegisters *volatile reg_op = (XhciOperationalRegisters *volatile) (mmio_base + reg_cap->length);
+
+    ComPrint("[XHCI]: Capability length: %d bytes.\n", reg_cap->length);
+    ComPrint("[XHCI]: USB Status: 0x%x\n", reg_op->usb_status);
+
+    // Reset the controller. (Set Run/Stop to 0, then wait for it to be 0.)
+
+    return;
+
+    while (reg_op->usb_status & 0x80000000) {
+        // Wait for the controller to be ready.
+
+        ComPrint("[XHCI]: Waiting for controller to be ready... (%X)\n", reg_op->usb_status);
+        uint16_t status_register = PciRead32(&driver->device, 0x4) >> 16;
+        uint16_t command_register = PciRead32(&driver->device, 0x4) & 0xFFFF;
+
+        ComPrint("[XHCI]: sts, cmd: %x, %x\n", status_register, command_register);
+    }
+
+    ComPrint("[XHCI]: Controller ready.\n");
 }
 
 static void XhciFinalize(PciDriver *driver) {
