@@ -118,7 +118,7 @@ void MmInitialize(struct limine_memmap_response *memmap) {
     kMemoryBitmap.size = largest->length / PAGE_SIZE + 1;
     kMemoryBitmap.map = (uint64_t *) largest->base;
 
-    MmLockPage(0);// Lock the zero page
+    MmLockPage(0); // Lock the zero page
 
     MmLockPages(largest->base, largest->length / PAGE_SIZE + 1);
 
@@ -185,17 +185,15 @@ void MmUnreservePages(uint64_t address, uint64_t size) {
 }
 
 void *MmAllocate(uint64_t size) {
-    uint64_t pages = size / PAGE_SIZE;
+    uint64_t pages = size / PAGE_SIZE + 1;
     uint64_t index = BmFindFirstFree(&kMemoryBitmap);
     if (index == kMemoryBitmap.size) {
-
         ComPrint("[MM]: Out of memory! (%d, %d)\n", kMemoryBitmap.size, index);
         return NULL;
     }
 
     MmLockPages(index * PAGE_SIZE, pages);
 
-    // ComPrint("[MM]: Allocated %d pages at 0x%X\n", pages, index * PAGE_SIZE);
     return (void *) (index * PAGE_SIZE);
 }
 

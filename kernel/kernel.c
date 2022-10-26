@@ -39,7 +39,7 @@ static void KeSMPMain(struct limine_smp_info *info) {
 // Entry-point for primary core
 void KeMain(void) {
     uint64_t stack = 0; __asm__ volatile("mov %%rsp, %0" : "=r"(stack));
-
+    
     ComPrint("[KERNEL] Primary core started.\n", stack);
 
     IntelInitialize(stack);

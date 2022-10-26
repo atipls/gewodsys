@@ -13,3 +13,5 @@ void BmClear(Bitmap *bitmap, uint64_t index);
 
 uint64_t BmFindFirstFree(Bitmap *bitmap);
 uint64_t BmFindFirstSet(Bitmap *bitmap);
+
+void BmPrint(Bitmap *bitmap);

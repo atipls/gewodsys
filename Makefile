@@ -1,4 +1,4 @@
-QEMU_OPTIONS = -M q35 -m 128M -smp 4 -serial stdio -d cpu_reset -d int -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0,port=1 -no-reboot -no-shutdown
+QEMU_OPTIONS = -M q35 -m 128M -smp 4 -serial stdio -d cpu_reset -d int -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0,port=1 -no-reboot -no-shutdown -monitor telnet:127.0.0.1:1234,server,nowait
 PROJECT_NAME = gewodsys
 
 .PHONY: all
@@ -14,6 +14,10 @@ run: $(PROJECT_NAME).iso
 .PHONY: run-uefi
 run-uefi: ovmf-x64 $(PROJECT_NAME).iso
 	qemu-system-x86_64 $(QEMU_OPTIONS) -bios ovmf-x64/OVMF.fd -cdrom $(PROJECT_NAME).iso -boot d
+
+.PHONY: run-uefi-lldb
+run-uefi-lldb: ovmf-x64 $(PROJECT_NAME).iso
+	qemu-system-x86_64 $(QEMU_OPTIONS) -bios ovmf-x64/OVMF.fd -cdrom $(PROJECT_NAME).iso -boot d -S -s
 
 .PHONY: run-hdd
 run-hdd: $(PROJECT_NAME).hdd

@@ -25,6 +25,7 @@ typedef struct __attribute__((aligned(0x1000))) {
 enum {
     kPagePresent = 1 << 0,
     kPageReadWrite = 1 << 1,
+    kPageSuperuser = 1 << 2,
     kPageWriteThrough = 1 << 3,
     kPageDisableCache = 1 << 4,
 };

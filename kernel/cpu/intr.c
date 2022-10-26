@@ -45,11 +45,14 @@ static char *kIsrNames[] = {
         [18] = "Machine check",
         [19] = "SIMD floating-point exception",
         [20] = "Virtualization exception",
-        [30] = "Security exception"};
+        [30] = "Security exception",
+};
 
 
 __attribute__((no_caller_saved_registers)) static void IsrGenericHandler(CpuContext *ctx, uint32_t isr_number) {
-    ComPrint("Unhandled interrupt: %s\n", kIsrNames[isr_number]);
+    if (kIsrNames[isr_number])
+       ComPrint("Unhandled interrupt: %s\n", kIsrNames[isr_number]);
+    else ComPrint("Unhandled interrupt number: %d\n", isr_number);
 
     if (isr_number == 14) {
         uint64_t cr2;

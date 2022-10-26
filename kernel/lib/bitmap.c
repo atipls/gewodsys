@@ -14,27 +14,26 @@ void BmClear(Bitmap *bitmap, uint64_t index) {
 }
 
 uint64_t BmFindFirstFree(Bitmap *bitmap) {
-    for (uint64_t i = 0; i < bitmap->size; i++) {
-        if (bitmap->map[i] != 0xFFFFFFFFFFFFFFFF) {
-            for (uint64_t j = 0; j < 64; j++) {
-                if (!(bitmap->map[i] & (1 << j)))
-                    return i * 64 + j;
-            }
-        }
-    }
+    for (uint64_t i = 0; i < bitmap->size; i++)
+        if (!BmGet(bitmap, i))
+            return i;
 
     return bitmap->size;
 }
 
 uint64_t BmFindFirstSet(Bitmap *bitmap) {
-    for (uint64_t i = 0; i < bitmap->size; i++) {
-        if (bitmap->map[i] != 0) {
-            for (uint64_t j = 0; j < 64; j++) {
-                if (bitmap->map[i] & (1 << j))
-                    return i * 64 + j;
-            }
-        }
-    }
+    for (uint64_t i = 0; i < bitmap->size; i++)
+        if (BmGet(bitmap, i))
+            return i;
 
-    return 0;
+    return bitmap->size;
+}
+
+void BmPrint(Bitmap *bitmap) {
+    for (uint64_t i = 0; i < bitmap->size; i++) {
+        if (BmGet(bitmap, i))
+            ComPutChar('1');
+        else
+            ComPutChar('0');
+    }
 }

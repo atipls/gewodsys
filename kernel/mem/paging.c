@@ -24,6 +24,8 @@ void MmInitializePaging(struct limine_memmap_response *memmap) {
     kPML4 = MmAllocate(sizeof(PageTable));
     MmZeroMemory(kPML4, sizeof(PageTable));
 
+    ComPrint("kPML4: 0x%X\n", kPML4);
+
     struct limine_kernel_address_response *kernel_address = kernel_address_request.response;
 
     ComPrint("Kernel text: 0x%X - 0x%X\n", &kTextStart, &kTextEnd);
@@ -33,19 +35,22 @@ void MmInitializePaging(struct limine_memmap_response *memmap) {
 
     ComPrint("Kernel address: 0x%X\n", kernel_address->physical_base);
 
+    // Map everything that limine has mapped for us
     for (uint64_t entry_index = 0; entry_index < memmap->entry_count; entry_index++) {
         const struct limine_memmap_entry *entry = memmap->entries[entry_index];
         uintptr_t address = entry->base;
         if (entry->type == LIMINE_MEMMAP_USABLE || entry->type == LIMINE_MEMMAP_FRAMEBUFFER) {
             for (uint64_t offset = 0; offset < entry->length; offset += 0x1000)
-                MmMapPage(address + offset + 0xFFFFFFFF80000000, address + offset, kPagePresent | kPageReadWrite);
+                MmMapPage(0xFFFF800000000000 + address + offset, address + offset, kPagePresent | kPageReadWrite);
         }
     }
 
-    for (uint64_t i = 0; i < 0x100000000; i += 0x1000) {
-        MmMapPage(0xFFFFFFFF80000000 + i, i, kPagePresent | kPageReadWrite);
+    // Identity map the first 4 GiB
+    for (uint64_t offset = 0; offset < 0x100000000; offset += 0x1000) {
+        MmMapPage(0xFFFF800000000000 + offset, offset, kPagePresent | kPageReadWrite);
     }
 
+    // Map the kernel
     for (uint64_t i = 0; i < 0x10000; i += 0x1000) {
         MmMapPage(
                 kernel_address->virtual_base + i,
@@ -86,7 +91,7 @@ void MmUnmapVirtual(uint64_t virtual_address, uint64_t size) {
 }
 
 void MmMapPage(uint64_t virtual_address, uint64_t physical_address, uint64_t flags) {
-    ComPrint("MmMapPage(0x%X, 0x%X, 0x%X); // Pdp %d Pd %d Pt %d Pi %d\n", virtual_address, physical_address, flags, MmGetPdp(virtual_address), MmGetPd(virtual_address), MmGetPt(virtual_address), MmGetPi(virtual_address));
+    // ComPrint("MmMapPage(0x%X, 0x%X, 0x%X); // Pdp %d Pd %d Pt %d Pi %d, kPML4: 0x%X\n", virtual_address, physical_address, flags, MmGetPdp(virtual_address), MmGetPd(virtual_address), MmGetPt(virtual_address), MmGetPi(virtual_address), kPML4);
 
     PageTable *pdp = (PageTable *) (uintptr_t) kPML4->pde[MmGetPdp(virtual_address)].address;
     if (!pdp) {
@@ -120,8 +125,12 @@ void MmMapPage(uint64_t virtual_address, uint64_t physical_address, uint64_t fla
 
     PageDirectoryEntry *pi_entry = &pt->pde[MmGetPi(virtual_address)];
     pi_entry->address = physical_address;
-    pi_entry->present = 1;
-    pi_entry->read_write = 1;
+    if (flags & kPagePresent)
+        pi_entry->present = 1;
+    if (flags & kPageReadWrite)
+        pi_entry->read_write = 1;
+    if (flags & kPageSuperuser)
+        pi_entry->superuser = 1;
     if (flags & kPageDisableCache)
         pi_entry->disable_cache = 1;
     if (flags & kPageWriteThrough)

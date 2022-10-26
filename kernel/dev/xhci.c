@@ -25,17 +25,19 @@ static void XhciInitialize(PciDriver *driver) {
 
     ComPrint("[XHCI]: MMIO base: 0x%X (Physical: 0x%X)\n", mmio_base, mmio_base_physical);
 
+#define USBXHCI_USBSTS_CNR_BITS 1
+#define USBXHCI_USBSTS_CNR_MASK ((1U << USBXHCI_USBSTS_CNR_BITS) - 1)
+#define USBXHCI_USBSTS_CNR_BIT 11
+#define USBXHCI_USBSTS_CNR (USBXHCI_USBSTS_CNR_MASK << USBXHCI_USBSTS_CNR_BIT)
+
+
     XhciCapabilityRegisters *volatile reg_cap = (XhciCapabilityRegisters *volatile) mmio_base;
     XhciOperationalRegisters *volatile reg_op = (XhciOperationalRegisters *volatile) (mmio_base + reg_cap->length);
 
     ComPrint("[XHCI]: Capability length: %d bytes.\n", reg_cap->length);
     ComPrint("[XHCI]: USB Status: 0x%x\n", reg_op->usb_status);
 
-    // Reset the controller. (Set Run/Stop to 0, then wait for it to be 0.)
-
-    return;
-
-    while (reg_op->usb_status & 0x80000000) {
+    while (reg_op->usb_status & USBXHCI_USBSTS_CNR) {
         // Wait for the controller to be ready.
 
         ComPrint("[XHCI]: Waiting for controller to be ready... (%X)\n", reg_op->usb_status);
