@@ -37,23 +37,16 @@ void MmInitializePaging(struct limine_memmap_response *memmap) {
         const struct limine_memmap_entry *entry = memmap->entries[entry_index];
         uintptr_t address = entry->base;
         if (entry->type == LIMINE_MEMMAP_USABLE || entry->type == LIMINE_MEMMAP_FRAMEBUFFER) {
-            for (uint64_t offset = 0; offset < entry->length;) {
-                if (address & 0xFFF) {
-                    address &= 0xFFFFFFFFFFFFF000;
-                    MmMapPage(address + offset + 0xFFFF800000000000, address + offset, kPagePresent | kPageReadWrite);
-                } else {
-                    MmMapPage(address + offset + 0xFFFF800000000000, address + offset, kPagePresent | kPageReadWrite);
-                    offset += 0x1000;
-                }
-            }
+            for (uint64_t offset = 0; offset < entry->length; offset += 0x1000)
+                MmMapPage(address + offset + 0xFFFFFFFF80000000, address + offset, kPagePresent | kPageReadWrite);
         }
     }
 
     for (uint64_t i = 0; i < 0x100000000; i += 0x1000) {
-        MmMapPage(0xFFFF800000000000 + i, i, kPagePresent | kPageReadWrite);
+        MmMapPage(0xFFFFFFFF80000000 + i, i, kPagePresent | kPageReadWrite);
     }
 
-    for (uint64_t i = 0; i < 0x7000; i += 0x1000) {
+    for (uint64_t i = 0; i < 0x10000; i += 0x1000) {
         MmMapPage(
                 kernel_address->virtual_base + i,
                 kernel_address->physical_base + i,
@@ -93,7 +86,7 @@ void MmUnmapVirtual(uint64_t virtual_address, uint64_t size) {
 }
 
 void MmMapPage(uint64_t virtual_address, uint64_t physical_address, uint64_t flags) {
-    //ComPrint("[MM] Mapping Physical 0x%X to Virtual 0x%X\n", physical_address, virtual_address);
+    ComPrint("MmMapPage(0x%X, 0x%X, 0x%X); // Pdp %d Pd %d Pt %d Pi %d\n", virtual_address, physical_address, flags, MmGetPdp(virtual_address), MmGetPd(virtual_address), MmGetPt(virtual_address), MmGetPi(virtual_address));
 
     PageTable *pdp = (PageTable *) (uintptr_t) kPML4->pde[MmGetPdp(virtual_address)].address;
     if (!pdp) {
