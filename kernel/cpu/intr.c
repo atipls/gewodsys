@@ -3,6 +3,14 @@
 
 #include "intel.h"
 
+#define INTERRUPT_HANDLER(nr, code) \
+__attribute__((interrupt)) static void IsrPicHandler ## nr (CpuContext* ctx)  \
+{                  \
+    (void) ctx;    \
+    IsrPicEoi(nr); \
+    code           \
+}
+
 typedef struct CpuContext {
     uint64_t rax;
     uint64_t rbx;
@@ -115,96 +123,32 @@ __attribute__((no_caller_saved_registers)) static void IsrPicEoi(unsigned char i
     IoOut8(PIC1_COMMAND, PIC_EOI);
 }
 
-__attribute__((interrupt)) static void IsrPicHandler0(CpuContext *ctx) {
-    (void) ctx;
-
+INTERRUPT_HANDLER(0, {
     ComPrint("IsrPicHandler0 - Timer!\n");
+});
 
-    IsrPicEoi(0);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler1(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(1);
-
+INTERRUPT_HANDLER(1, {
     uint8_t state = IoIn8(0x60);
     uint8_t scancode = state & 0x7F;
     uint8_t pressed = !(state & 0x80);
 
     ComPrint("IsrPicHandler1 - Keyboard! scancode=%d pressed=%d\n", scancode, pressed);
-}
+});
 
-__attribute__((interrupt)) static void IsrPicHandler2(CpuContext *ctx) {
-    (void) ctx;
-
-    IsrPicEoi(1);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler3(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(3);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler4(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(4);
-
-}
-
-__attribute__((interrupt)) static void IsrPicHandler5(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(5);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler6(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(6);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler7(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(7);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler8(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(8);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler9(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(9);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler10(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(10);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler11(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(11);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler12(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(12);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler13(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(13);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler14(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(14);
-}
-
-__attribute__((interrupt)) static void IsrPicHandler15(CpuContext *ctx) {
-    (void) ctx;
-    IsrPicEoi(15);
-}
+INTERRUPT_HANDLER(2, {});
+INTERRUPT_HANDLER(3, {});
+INTERRUPT_HANDLER(4, {});
+INTERRUPT_HANDLER(5, {});
+INTERRUPT_HANDLER(6, {});
+INTERRUPT_HANDLER(7, {});
+INTERRUPT_HANDLER(8, {});
+INTERRUPT_HANDLER(9, {});
+INTERRUPT_HANDLER(10, {});
+INTERRUPT_HANDLER(11, {});
+INTERRUPT_HANDLER(12, {});
+INTERRUPT_HANDLER(13, {});
+INTERRUPT_HANDLER(14, {});
+INTERRUPT_HANDLER(15, {});
 
 void IntelRemapPic(void) {
     uint8_t a1, a2;
