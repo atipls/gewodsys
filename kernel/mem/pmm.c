@@ -117,17 +117,15 @@ void MmUnlockPages(void *address, uint64_t pages) {
         MmUnlockPage((void *) ((uint64_t) address + (i << 12)));
 }
 
-
 void *MmRequestPage() {
-    static uint64_t last_requested;
+    static uint64_t last_requested = 0;
     uint64_t first = last_requested - 1;
 
     while (GET_PAGE_BIT(last_requested) == 1) {
         if (last_requested >= kMemory->total_available_pages)
             last_requested = 0;
-        if (last_requested == first) {
+        if (last_requested == first)
             ComPrint("[MM] No free pages available!\n");
-        }
         last_requested++;
     }
 

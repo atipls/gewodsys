@@ -125,9 +125,21 @@ typedef struct __attribute__((packed)) {
     uint32_t reserved2;
 } AcpiMcfg;
 
+typedef struct __attribute__((packed)) {
+    AcpiTableHeader header;
+    uint8_t data[];
+} AcpiSsdt;
+
+typedef struct __attribute__((packed)) {
+    AcpiTableHeader header;
+    uint8_t data[];
+} AcpiDsdt;
+
 #define ACPI_MADT_ID 0x43495041 /* "APIC" */
 #define ACPI_FADT_ID 0x50434146 /* "FACP" */
 #define ACPI_HPET_ID 0x54455048 /* "HPET" */
 #define ACPI_MCFG_ID 0x4746434D /* "MCFG" */
+#define ACPI_SSDT_ID 0x54445353 /* "SSDT" */
+#define ACPI_DSDT_ID 0x54445344 /* "DSDT" */
 
 void AcpiInitialize(void);

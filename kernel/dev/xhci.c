@@ -22,31 +22,31 @@ static void XhciInitialize(PciDriver *driver) {
 
     MmMapMemory((void *) mmio_base, (void *) mmio_base);
 
-    ComPrint("[XHCI]: MMIO base: 0x%X\n", mmio_base);
+    ComPrint("[XHCI] MMIO base: 0x%X\n", mmio_base);
 
     XhciCapabilityRegisters *volatile reg_cap = (XhciCapabilityRegisters *volatile) mmio_base;
     XhciOperationalRegisters *volatile reg_op = (XhciOperationalRegisters *volatile) (mmio_base + reg_cap->length);
 
-    ComPrint("[XHCI]: Capability length: %d bytes.\n", reg_cap->length);
-    ComPrint("[XHCI]: USB Status: 0x%x\n", reg_op->usb_status);
+    ComPrint("[XHCI] Capability length: %d bytes.\n", reg_cap->length);
+    ComPrint("[XHCI] USB Status: 0x%x\n", reg_op->usb_status);
 
     while (reg_op->usb_status & 0x800) {
         // Wait for the controller to be ready.
 
-        ComPrint("[XHCI]: Waiting for controller to be ready... (%X)\n", reg_op->usb_status);
+        ComPrint("[XHCI] Waiting for controller to be ready... (%X)\n", reg_op->usb_status);
         uint16_t status_register = PciRead32(&driver->device, 0x4) >> 16;
         uint16_t command_register = PciRead32(&driver->device, 0x4) & 0xFFFF;
 
-        ComPrint("[XHCI]: sts, cmd: %x, %x\n", status_register, command_register);
+        ComPrint("[XHCI] sts, cmd: %x, %x\n", status_register, command_register);
     }
 
-    ComPrint("[XHCI]: Controller ready.\n");
+    ComPrint("[XHCI] Controller ready.\n");
 }
 
 static void XhciFinalize(PciDriver *driver) {
     (void) driver;
 
-    ComPrint("[XHCI]: Finalizing...\n");
+    ComPrint("[XHCI] Finalizing...\n");
 }
 
 PciDriver kXhciDriver = {

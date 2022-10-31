@@ -45,9 +45,11 @@ typedef struct PciDriver {
 
 extern PciDriver *kPciDrivers[];
 
+uint8_t PciRead8(PciDevice *device, uint8_t offset);
 uint16_t PciRead16(PciDevice *device, uint8_t offset);
 uint32_t PciRead32(PciDevice *device, uint8_t offset);
 
+void PciWrite8(PciDevice *device, uint8_t offset, uint8_t value);
 void PciWrite16(PciDevice *device, uint8_t offset, uint16_t value);
 void PciWrite32(PciDevice *device, uint8_t offset, uint32_t value);
 

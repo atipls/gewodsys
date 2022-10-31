@@ -3,7 +3,7 @@ override KERNEL := kernel.elf
 CC = x86_64-elf-gcc
 LD = x86_64-elf-ld
 
-CFLAGS ?= -g -O2 -pipe -Wall -Wextra
+CFLAGS ?= -g -pipe -Wall -Wextra
 CPPFLAGS ?=
 NASMFLAGS ?= -F dwarf -g
 LDFLAGS ?=

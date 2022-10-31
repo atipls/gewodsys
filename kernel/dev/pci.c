@@ -15,6 +15,12 @@ uint8_t kLoadedPciDriverCount = 0;
 #define PCI_CONFIG_ADDRESS 0xCF8
 #define PCI_CONFIG_DATA 0xCFC
 
+uint8_t PciRead8(PciDevice *device, uint8_t offset) {
+    uint32_t address = (1 << 31) | (device->bus << 16) | (device->device << 11) | (device->function << 8) | (offset & 0xFC);
+    IoOut32(PCI_CONFIG_ADDRESS, address);
+    return IoIn8(PCI_CONFIG_DATA + (offset & 0x3));
+}
+
 uint16_t PciRead16(PciDevice *device, uint8_t offset) {
     uint32_t address = (1 << 31) | (device->bus << 16) | (device->device << 11) | (device->function << 8) | (offset & 0xFC);
     IoOut32(PCI_CONFIG_ADDRESS, address);
@@ -27,10 +33,16 @@ uint32_t PciRead32(PciDevice *device, uint8_t offset) {
     return (high << 16) | low;
 }
 
+void PciWrite8(PciDevice *device, uint8_t offset, uint8_t value) {
+    uint32_t address = (1 << 31) | (device->bus << 16) | (device->device << 11) | (device->function << 8) | (offset & 0xFC);
+    IoOut32(PCI_CONFIG_ADDRESS, address);
+    IoOut8(PCI_CONFIG_DATA + (offset & 0x3), value);
+}
+
 void PciWrite16(PciDevice *device, uint8_t offset, uint16_t value) {
     uint32_t address = (1 << 31) | (device->bus << 16) | (device->device << 11) | (device->function << 8) | (offset & 0xFC);
     IoOut32(PCI_CONFIG_ADDRESS, address);
-    IoOut32(PCI_CONFIG_DATA, value);
+    IoOut16(PCI_CONFIG_DATA + (offset & 0x2), value);
 }
 
 void PciWrite32(PciDevice *device, uint8_t offset, uint32_t value) {
@@ -53,7 +65,7 @@ void PciGetBar(PciDevice *device, uint32_t bar, uint64_t *address) {
         *address |= ((uint64_t) bar_value_upper) << 32;
     }
 
-    ComPrint("[PCI]: BAR %d: %X", bar, *address);
+    ComPrint("[PCI] BAR %d: %X", bar, *address);
 
 }
 

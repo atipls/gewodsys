@@ -45,7 +45,7 @@ static void IntelInitializeTimer(uint16_t frequency) {
 }
 
 void IntelInitialize(uint64_t kernel_stack) {
-    ComPrint("[CPU]: Initializing Intel CPU (stack 0x%X).\n", kernel_stack);
+    ComPrint("[CPU] Initializing Intel CPU (stack 0x%X).\n", kernel_stack);
 
     kIntelTSS.rsp[0] = kernel_stack;
     kIntelTSS.ist[1] = 0;
@@ -61,7 +61,7 @@ void IntelInitialize(uint64_t kernel_stack) {
                      :
                      : "m"(kIntelGDTR));
 
-    ComPrint("[CPU]: TSS and GDT initialized.\n");
+    ComPrint("[CPU] TSS and GDT initialized.\n");
 
     extern void *kIntelIsrTable[32];
     extern void *kIntelIsrPicTable[32];
@@ -77,7 +77,7 @@ void IntelInitialize(uint64_t kernel_stack) {
                      : "m"(kIntelIDTR));
 
 
-    ComPrint("[CPU]: IDT initialized.\n");
+    ComPrint("[CPU] IDT initialized.\n");
 
     IntelRemapPic();
     IoOut8(PIC1_DATA, 0x11); // ICW1
@@ -91,7 +91,7 @@ void IntelInitialize(uint64_t kernel_stack) {
 
     __asm__ volatile("sti");
 
-    ComPrint("[CPU]: Interrupts enabled.\n");
+    ComPrint("[CPU] Interrupts enabled.\n");
 }
 
 
