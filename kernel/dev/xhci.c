@@ -1,7 +1,6 @@
 #include "xhci.h"
 
-#include <mem/memory.h>
-#include <mem/paging.h>
+#include <mem/vmm.h>
 #include <utl/serial.h>
 
 static uint8_t XhciTryProbe(PciDevice *device) {
@@ -16,20 +15,14 @@ static void XhciInitialize(PciDriver *driver) {
     PciMaybeEnableBusMastering(&driver->device);
     PciMaybeEnableMemoryAccess(&driver->device);
 
-    uint64_t mmio_base_physical = PciRead32(&driver->device, 0x10);
-    if (mmio_base_physical & kPciBar64)
-        mmio_base_physical |= (uint64_t) PciRead32(&driver->device, 0x14) << 32;
-    mmio_base_physical &= ~0xF;
+    uint64_t mmio_base = PciRead32(&driver->device, 0x10);
+    if (mmio_base & kPciBar64)
+        mmio_base |= (uint64_t) PciRead32(&driver->device, 0x14) << 32;
+    mmio_base &= ~0xF;
 
-    uint64_t mmio_base = MmMapToVirtual(mmio_base_physical, 0x4000);
+    MmMapMemory((void *) mmio_base, (void *) mmio_base);
 
-    ComPrint("[XHCI]: MMIO base: 0x%X (Physical: 0x%X)\n", mmio_base, mmio_base_physical);
-
-#define USBXHCI_USBSTS_CNR_BITS 1
-#define USBXHCI_USBSTS_CNR_MASK ((1U << USBXHCI_USBSTS_CNR_BITS) - 1)
-#define USBXHCI_USBSTS_CNR_BIT 11
-#define USBXHCI_USBSTS_CNR (USBXHCI_USBSTS_CNR_MASK << USBXHCI_USBSTS_CNR_BIT)
-
+    ComPrint("[XHCI]: MMIO base: 0x%X\n", mmio_base);
 
     XhciCapabilityRegisters *volatile reg_cap = (XhciCapabilityRegisters *volatile) mmio_base;
     XhciOperationalRegisters *volatile reg_op = (XhciOperationalRegisters *volatile) (mmio_base + reg_cap->length);
@@ -37,7 +30,7 @@ static void XhciInitialize(PciDriver *driver) {
     ComPrint("[XHCI]: Capability length: %d bytes.\n", reg_cap->length);
     ComPrint("[XHCI]: USB Status: 0x%x\n", reg_op->usb_status);
 
-    while (reg_op->usb_status & USBXHCI_USBSTS_CNR) {
+    while (reg_op->usb_status & 0x800) {
         // Wait for the controller to be ready.
 
         ComPrint("[XHCI]: Waiting for controller to be ready... (%X)\n", reg_op->usb_status);
@@ -51,6 +44,8 @@ static void XhciInitialize(PciDriver *driver) {
 }
 
 static void XhciFinalize(PciDriver *driver) {
+    (void) driver;
+
     ComPrint("[XHCI]: Finalizing...\n");
 }
 

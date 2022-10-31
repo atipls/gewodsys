@@ -164,7 +164,7 @@ void PciInitialize(AcpiMcfg *mcfg) {
                          PciGetDeviceName(pci_device.vendor_id, pci_device.device_id),
                          PciDeviceClasses[pci_device.class_code]);
 
-                for (int i = 0; i < sizeof(kPciDrivers) / sizeof(PciDriver *); i++) {
+                for (uint64_t i = 0; i < sizeof(kPciDrivers) / sizeof(PciDriver *); i++) {
                     PciDriver *driver = kPciDrivers[i];
                     if (!driver->try_probe(&pci_device))
                         continue;
