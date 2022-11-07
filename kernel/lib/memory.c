@@ -9,9 +9,9 @@ void RtZeroMemory(void *address, uint64_t size) {
     }
 }
 
-void RtCopyMemory(void *destination, void *source, uint64_t size) {
+void RtCopyMemory(void *destination, const void *source, uint64_t size) {
     uint8_t *dest = (uint8_t *) destination;
-    uint8_t *src = (uint8_t *) source;
+    const uint8_t *src = (const uint8_t *) source;
     for (uint64_t i = 0; i < size; i++) {
         dest[i] = src[i];
     }

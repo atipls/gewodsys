@@ -24,7 +24,7 @@ static volatile struct limine_smbios_request smbios_request = {
 
 
 void AcpiInitialize(void) {
-    ComPrint("Sex: 0x%X\n", HeapAllocate(0x1000));
+    ComPrint("Sex: 0x%X\n", kmalloc(0x1000));
     AcpiRootSystemDescriptionPointer *rsdp = rsdp_request.response->address;
 
     ComPrint("[ACPI] RSDP: 0x%X, XSDT: 0x%X\n", rsdp, rsdp->xsdt_address);
@@ -58,19 +58,19 @@ void AcpiInitialize(void) {
 
     ComPrint("[ACPI] MADT: 0x%X, FADT: 0x%X, HPET: 0x%X, MCFG: 0x%X SSDT: 0x%X\n", madt, fadt, hpet, mcfg, ssdt);
 
-    lai_enable_tracing(LAI_TRACE_NS);
+    //lai_enable_tracing(LAI_TRACE_NS);
     lai_set_acpi_revision(rsdp->revision);
     lai_create_namespace();
 
     lai_enable_acpi(1);
 
-    ComPrint("[ACPI] ACPI enabled\n");
-
+    /*
     struct lai_ns_iterator it;
     lai_nsnode_t *node = NULL;
     while ((node = lai_ns_iterate(&it))) {
         ComPrint("[ACPI] Node: %s\n", lai_stringify_node_path(node));
     }
+    */
 
     PciInitialize(mcfg);
 }
@@ -89,12 +89,12 @@ __attribute__((noreturn)) void laihost_panic(const char *msg) {
 }
 
 void *laihost_malloc(size_t size) {
-    return HeapAllocate(size);
+    return kmalloc(size);
 }
 
 void laihost_free(void *ptr, size_t size) {
     (void) size;
-    HeapFree(ptr);
+    kfree(ptr);
 }
 
 void *laihost_realloc(void *ptr, size_t size, size_t old_size) {
@@ -102,16 +102,16 @@ void *laihost_realloc(void *ptr, size_t size, size_t old_size) {
         return ptr;
 
     if (size == 0) {
-        HeapFree(ptr);
+        kfree(ptr);
         return 0;
     }
 
     if (!ptr)
-        return HeapAllocate(size);
+        return kmalloc(size);
 
-    void *new_ptr = HeapAllocate(size);
+    void *new_ptr = kmalloc(size);
     RtCopyMemory(new_ptr, ptr, old_size);
-    HeapFree(ptr);
+    kfree(ptr);
 
     return new_ptr;
 }

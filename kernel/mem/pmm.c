@@ -23,7 +23,7 @@ static volatile struct limine_memmap_request memmap_request = {
 int MmInitialize() {
     uint64_t total_memory = 0, usable_memory = 0;
 
-    struct limine_memmap_entry *largest;
+    struct limine_memmap_entry *largest = 0;
     struct limine_memmap_response *memmap = memmap_request.response;
     for (uint64_t entry_index = 0; entry_index < memmap->entry_count; entry_index++) {
         struct limine_memmap_entry *entry = memmap->entries[entry_index];
@@ -43,7 +43,7 @@ int MmInitialize() {
     uint64_t bitfield_entries = ((available_pages % 8) == 0) ? (available_pages >> 3) : (available_pages >> 3) + 1;
 
     if (largest->length < (bitfield_entries + sizeof(MemoryStatistics) + (3 << 12)))
-        ComPrint("init_memory: not enough memory for memory bitfield");
+        ComPrint("[MM]: Not enough memory to fit the physical bitmap.\n");
 
     kMemory = (MemoryStatistics *) first_available_address;
     kMemory->bitfield = (uint8_t *) ALIGN_ADDR(first_available_address + sizeof(MemoryStatistics));
@@ -62,7 +62,7 @@ int MmInitialize() {
     kMemory->first_available_page_addr = first_available_address;
 
     if (!IS_ALIGNED(kMemory) || !IS_ALIGNED(kMemory->bitfield) || !IS_ALIGNED(kMemory->first_available_page_addr))
-        ComPrint("Memory alignment error!");
+        ComPrint("[MM]: Memory is not aligned.\n");
 
     MmReservePages((void *) 0, (bitfield_entries + sizeof(MemoryStatistics) + (3 << 12)) >> 12);
 

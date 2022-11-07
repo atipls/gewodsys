@@ -66,7 +66,6 @@ void PciGetBar(PciDevice *device, uint32_t bar, uint64_t *address) {
     }
 
     ComPrint("[PCI] BAR %d: %X", bar, *address);
-
 }
 
 static const char *PciDeviceClasses[] = {
@@ -141,6 +140,17 @@ static const char *PciGetDeviceName(uint16_t vendor_id, uint16_t device_id) {
                 case 0x000D: return "XHCI Host Controller";
                 default:
                     ComPrint("Unknown qemu device: %x\n", device_id);
+                    return "Unknown";
+            }
+        case 0x1af4:
+            switch (device_id) {
+                case 0x1000: return "Network Adapter";
+                case 0x1001: return "Block Device";
+                case 0x1002: return "Console";
+                case 0x1041: return "RNG";
+                case 0x1050: return "GPU";
+                default:
+                    ComPrint("Unknown virtio device: %x\n", device_id);
                     return "Unknown";
             }
         default: return "Unknown";

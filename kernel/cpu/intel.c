@@ -80,59 +80,16 @@ void IntelInitialize(uint64_t kernel_stack) {
     ComPrint("[CPU] IDT initialized.\n");
 
     IntelRemapPic();
-    IoOut8(PIC1_DATA, 0x11); // ICW1
+    IoOut8(PIC1_DATA, 0x11);// ICW1
     IoOut8(PIC2_DATA, 0x11);
 
 
     uint8_t val = IoIn8(0x4D1);
-    IoOut8(0x4D1, val | (1 << (10-8)) | (1 << (11-8)));
+    IoOut8(0x4D1, val | (1 << (10 - 8)) | (1 << (11 - 8)));
 
-    IntelInitializeTimer(1000); // 1ms
+    IntelInitializeTimer(1000);// 1ms
 
     __asm__ volatile("sti");
 
     ComPrint("[CPU] Interrupts enabled.\n");
-}
-
-
-uint8_t IoIn8(uint16_t port) {
-    uint8_t ret;
-    __asm__ volatile("inb %1, %0"
-                     : "=a"(ret)
-                     : "Nd"(port));
-    return ret;
-}
-
-uint16_t IoIn16(uint16_t port) {
-    uint16_t ret;
-    __asm__ volatile("inw %1, %0"
-                     : "=a"(ret)
-                     : "Nd"(port));
-    return ret;
-}
-
-uint32_t IoIn32(uint16_t port) {
-    uint32_t ret;
-    __asm__ volatile("inl %1, %0"
-                     : "=a"(ret)
-                     : "Nd"(port));
-    return ret;
-}
-
-void IoOut8(uint16_t port, uint8_t val) {
-    __asm__ volatile("outb %0, %1" ::"a"(val), "Nd"(port));
-}
-
-void IoOut16(uint16_t port, uint16_t val) {
-    __asm__ volatile("outw %0, %1" ::"a"(val), "Nd"(port));
-}
-
-void IoOut32(uint16_t port, uint32_t val) {
-    __asm__ volatile("outl %0, %1" ::"a"(val), "Nd"(port));
-}
-
-void IoWait(void) {
-    __asm__ volatile("outb %%al, $0x80"
-                     :
-                     : "a"(0));
 }

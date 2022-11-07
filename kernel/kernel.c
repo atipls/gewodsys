@@ -38,15 +38,16 @@ static void KeSMPMain(struct limine_smp_info *info) {
 void KeMain(void) {
     uint64_t stack = 0;
     __asm__ volatile("mov %%rsp, %0"
-                     : "=r"(stack));
+                     : "=r"(stack) :: "memory");
 
-    ComPrint("[KERNEL] Primary core started.\n", stack);
+    ComPrint("[KERNEL] Primary core started.\n");
+
+    IntelInitialize(stack);
 
     MmInitialize();
     MmInitializePaging();
     MmInitializeHeap();
 
-    IntelInitialize(stack);
     AcpiInitialize();
 
     // TskInitialize();
