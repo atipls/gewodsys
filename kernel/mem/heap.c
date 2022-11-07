@@ -81,8 +81,8 @@ Heap *HeapCreate(uint64_t start, uint64_t end, uint64_t max, int8_t supervisor, 
     heap->index = ArrayCreate((void *) start, HEAP_INDEX_SIZE, &HeaderPredicate);
     start += sizeof(void *) * HEAP_INDEX_SIZE;
 
-    if ((start & 0xFFFFF000) != 0) {
-        start &= 0xFFFFF000;
+    if ((start & 0xFFFFFFFFFFFFF000) != 0) {
+        start &= 0xFFFFFFFFFFFFF000;
         start += 0x1000;
     }
 

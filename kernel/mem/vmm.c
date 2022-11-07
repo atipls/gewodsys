@@ -47,6 +47,11 @@ void MmMapMemory(void *virtual_memory, void *physical_memory) {
     if ((uint64_t) physical_memory & 0xfff)
         ComPrint("[MM] Physical memory address is not page aligned! (0x%X)\n", physical_memory);
 
+    // Page-align the addresses
+    virtual_memory = (void *) ((uint64_t) virtual_memory & 0xfffffffffffff000);
+    physical_memory = (void *) ((uint64_t) physical_memory & 0xfffffffffffff000);
+
+
     PageMapIndex map;
     MmGetPageIndices((uint64_t) virtual_memory, &map);
 

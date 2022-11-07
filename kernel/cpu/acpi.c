@@ -8,7 +8,7 @@
 
 #include <mem/heap.h>
 #include <mem/vmm.h>
-#include <stddef.h>// For LAI
+#include <stddef.h> // For LAI
 
 #include <cpu/lai/core/core.h>
 
@@ -117,6 +117,7 @@ void *laihost_realloc(void *ptr, size_t size, size_t old_size) {
 }
 
 void *laihost_map(size_t address, size_t count) {
+    address &= ~0xFFF;
     for (size_t i = 0; i < count; i += PAGE_SIZE)
         MmMapMemory((void *) address + i, (void *) address + i);
     return (void *) address;

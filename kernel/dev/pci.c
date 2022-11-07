@@ -3,10 +3,12 @@
 #include <cpu/intel.h>
 #include <utl/serial.h>
 
-#include "xhci.h"
+#include "gpu/virtiogpu.h"
+#include "usb/xhci.h"
 
 PciDriver *kPciDrivers[] = {
         &kXhciDriver,
+        &kVirtioGpuDriver,
 };
 
 PciDriver kLoadedPciDrivers[256];

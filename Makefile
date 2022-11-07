@@ -11,23 +11,15 @@ all: $(PROJECT_NAME).iso
 all-hdd: $(PROJECT_NAME).hdd
 
 .PHONY: run
-run: $(PROJECT_NAME).iso
-	qemu-system-x86_64 $(QEMU_OPTIONS) -cdrom $(PROJECT_NAME).iso -boot d
-
-.PHONY: run-uefi
-run-uefi: ovmf-x64 $(PROJECT_NAME).iso
+run: ovmf-x64 $(PROJECT_NAME).iso
 	qemu-system-x86_64 $(QEMU_OPTIONS) -bios ovmf-x64/OVMF.fd -cdrom $(PROJECT_NAME).iso -boot d
 
-.PHONY: run-uefi-lldb
-run-uefi-lldb: ovmf-x64 $(PROJECT_NAME).iso
+.PHONY: run-lldb
+run-lldb: ovmf-x64 $(PROJECT_NAME).iso
 	qemu-system-x86_64 $(QEMU_OPTIONS) -bios ovmf-x64/OVMF.fd -cdrom $(PROJECT_NAME).iso -boot d -S -s
 
 .PHONY: run-hdd
-run-hdd: $(PROJECT_NAME).hdd
-	qemu-system-x86_64 $(QEMU_OPTIONS) -hda $(PROJECT_NAME).hdd
-
-.PHONY: run-hdd-uefi
-run-hdd-uefi: ovmf-x64 $(PROJECT_NAME).hdd
+run-hdd: ovmf-x64 $(PROJECT_NAME).hdd
 	qemu-system-x86_64 $(QEMU_OPTIONS) -bios ovmf-x64/OVMF.fd -hda $(PROJECT_NAME).hdd
 
 ovmf-x64:

@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "pci.h"
+#include <dev/pci.h>
 
 typedef struct __attribute__((packed))  {
     uint8_t length;
@@ -47,7 +47,5 @@ typedef struct __attribute__((packed))  {
     uint32_t interrupter_moderation_control;
     uint32_t reserved_1[11];
 } XhciInterrupterRegisters;
-
-
 
 extern PciDriver kXhciDriver;
