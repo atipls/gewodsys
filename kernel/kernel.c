@@ -10,6 +10,8 @@
 #include <mem/vmm.h>
 #include <mem/heap.h>
 
+#include <tsk/sched.h>
+
 #include <utl/serial.h>
 
 static volatile struct limine_framebuffer_request framebuffer_request = {
@@ -21,6 +23,18 @@ static volatile struct limine_smp_request smp_request = {
         .id = LIMINE_SMP_REQUEST,
         .revision = 0,
 };
+
+static void TestTask1() {
+    while (1) {
+        ComPrint("[TSK] Test task 1\n");
+    }
+}
+
+static void TestTask2() {
+    while (1) {
+        ComPrint("[TSK] Test task 2\n");
+    }
+}
 
 #if 0
 // Entry-point for secondary cores
@@ -48,10 +62,14 @@ void KeMain(void) {
     MmInitializePaging();
     MmInitializeHeap();
 
+    TskInitialize();
+
     AcpiInitialize();
 
-    // TskInitialize();
+    TskCreateKernelTask("Test Task 1", TestTask1);
+    TskCreateKernelTask("Test Task 2", TestTask2);
 
+    TskPrintTasks();
 #if 0
     // Start up the other cores
     struct limine_smp_response *smp = smp_request.response;

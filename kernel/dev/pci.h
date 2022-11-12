@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #include <cpu/acpi.h>
 
 typedef struct PciBar {
@@ -8,11 +9,6 @@ typedef struct PciBar {
     uint8_t flags;
     uint8_t type;
 } PciBar;
-
-#define PCI_BAR_IO                      0x01
-#define PCI_BAR_LOWMEM                  0x02
-#define PCI_BAR_64                      0x04
-#define PCI_BAR_PREFETCH                0x08
 
 enum PciBarFlags {
     kPciBarIo = 0x01,

@@ -1,5 +1,6 @@
 #include "vmm.h"
 
+#include <cpu/intel.h>
 #include <lib/memory.h>
 #include <utl/serial.h>
 
@@ -21,13 +22,11 @@ static void print_pte(PageTableEntry *pte) {
 }
 
 void MmInitializePaging() {
-    __asm__("movq %%cr3, %0"
-            : "=r"(kPML4));
-    __asm__("movq %0, %%cr3"
-            :
-            : "r"(kPML4));
-}
+    ComPrint("[MM] Initializing paging\n");
 
+    kPML4 = (PageDirectory *) IntelGetCR3();
+    IntelSetCR3(kPML4);
+}
 
 void MmGetPageIndices(uint64_t address, PageMapIndex *map) {
     address >>= 12;

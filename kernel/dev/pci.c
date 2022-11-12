@@ -3,12 +3,12 @@
 #include <cpu/intel.h>
 #include <utl/serial.h>
 
-#include "gpu/virtiogpu.h"
+#include "gpu/cherrytrail.h"
 #include "usb/xhci.h"
 
 PciDriver *kPciDrivers[] = {
         &kXhciDriver,
-        &kVirtioGpuDriver,
+        &kCherryTrailDriver,
 };
 
 PciDriver kLoadedPciDrivers[256];

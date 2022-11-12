@@ -1,4 +1,5 @@
 #include "acpi.h"
+#include "apic.h"
 
 #include <cpu/intel.h>
 #include <limine.h>
@@ -6,11 +7,15 @@
 
 #include <dev/pci.h>
 
+#include <lib/memory.h>
 #include <mem/heap.h>
 #include <mem/vmm.h>
-#include <stddef.h> // For LAI
+#include <stddef.h>// For LAI
 
 #include <cpu/lai/core/core.h>
+#include <cpu/lai/helpers/sci.h>
+
+#define ISA_NUM_IRQS 16
 
 static volatile struct limine_rsdp_request rsdp_request = {
         .id = LIMINE_RSDP_REQUEST,
@@ -22,9 +27,73 @@ static volatile struct limine_smbios_request smbios_request = {
         .revision = 0,
 };
 
+#define ACPI_MADT_TYPE_LOCAL_APIC 0
+#define ACPI_MADT_TYPE_IO_APIC 1
+#define ACPI_MADT_TYPE_INT_SRC 2
+#define ACPI_MADT_TYPE_NMI_INT_SRC 3
+#define ACPI_MADT_TYPE_LAPIC_NMI 4
+#define ACPI_MADT_TYPE_APIC_OVERRIDE 5
+
+typedef struct __attribute__((packed)) {
+    uint8_t type;
+    uint8_t length;
+} AcpiMadtEntry;
+
+typedef struct __attribute__((packed)) {
+    AcpiMadtEntry header;
+    uint8_t acpi_processor_uid;
+    uint8_t apic_id;
+    uint32_t flags;
+} AcpiMadtLocalApic;
+
+typedef struct __attribute__((packed)) {
+    AcpiMadtEntry header;
+    uint8_t bus;
+    uint8_t source;
+    uint32_t global_system_interrupt;
+    uint16_t flags;
+} AcpiMadtInterruptOverride;
+
+
+static void AcpiInitializeMadt(AcpiMadt *madt) {
+    AcpiMadtInterruptOverride *overrides[ISA_NUM_IRQS] = {0};
+
+    if (madt->flags & 1) {
+        ComPrint("[ACPI] MADT PCAT Compatibility mode.\n");
+
+        // Disable legacy PIC
+        IoOut8(0x21, 0xFF);
+        IoOut8(0xA1, 0xFF);
+
+        for (int irq = 0; irq < ISA_NUM_IRQS; irq++)
+            overrides[irq] = 0;
+    }
+
+    AcpiMadtEntry *entries = (AcpiMadtEntry *) (madt + 1);
+    for (AcpiMadtEntry *entry = entries;
+         (uint8_t *) entry < (uint8_t *) madt + madt->header.length;
+         entry = (AcpiMadtEntry *) ((uint8_t *) entry + entry->length)) {
+
+        switch (entry->type) {
+            case ACPI_MADT_TYPE_LOCAL_APIC: {
+                AcpiMadtLocalApic *lapic = (AcpiMadtLocalApic *) entry;
+
+
+                break;
+            }
+            case ACPI_MADT_TYPE_IO_APIC: break;
+            case ACPI_MADT_TYPE_INT_SRC: break;
+            case ACPI_MADT_TYPE_NMI_INT_SRC: break;
+            case ACPI_MADT_TYPE_LAPIC_NMI: break;
+            case ACPI_MADT_TYPE_APIC_OVERRIDE: break;
+        }
+    }
+}
+
+static void AcpiInitializeFadt(AcpiFadt *fadt) {
+}
 
 void AcpiInitialize(void) {
-    ComPrint("Sex: 0x%X\n", kmalloc(0x1000));
     AcpiRootSystemDescriptionPointer *rsdp = rsdp_request.response->address;
 
     ComPrint("[ACPI] RSDP: 0x%X, XSDT: 0x%X\n", rsdp, rsdp->xsdt_address);
@@ -38,10 +107,9 @@ void AcpiInitialize(void) {
     AcpiFadt *fadt = 0;
     AcpiHpet *hpet = 0;
     AcpiMcfg *mcfg = 0;
-    AcpiSsdt *ssdt = 0;
 
     int length = (xsdt->header.length - sizeof(AcpiTableHeader)) / sizeof(uint64_t);
-    ComPrint("[ACPI] Available tables (%d total) (%d):\n", length, xsdt->header.length);
+    ComPrint("[ACPI] Available tables (%d total) (Revision %d):\n", length, rsdp->revision);
 
     for (int i = 0; i < length; i++) {
         AcpiTableHeader *header = (AcpiTableHeader *) xsdt->pointers[i];
@@ -52,25 +120,26 @@ void AcpiInitialize(void) {
             case ACPI_FADT_ID: fadt = (AcpiFadt *) header; break;
             case ACPI_HPET_ID: hpet = (AcpiHpet *) header; break;
             case ACPI_MCFG_ID: mcfg = (AcpiMcfg *) header; break;
-            case ACPI_SSDT_ID: ssdt = (AcpiSsdt *) header; break;
         }
     }
 
-    ComPrint("[ACPI] MADT: 0x%X, FADT: 0x%X, HPET: 0x%X, MCFG: 0x%X SSDT: 0x%X\n", madt, fadt, hpet, mcfg, ssdt);
+    ComPrint("[ACPI] MADT: 0x%X, FADT: 0x%X, HPET: 0x%X, MCFG: 0x%X\n", madt, fadt, hpet, mcfg);
 
-    //lai_enable_tracing(LAI_TRACE_NS);
+    AcpiInitializeMadt(madt);
+    AcpiInitializeFadt(fadt);
+
+#ifdef ACPI_USE_LAI
     lai_set_acpi_revision(rsdp->revision);
     lai_create_namespace();
 
     lai_enable_acpi(1);
 
-    /*
     struct lai_ns_iterator it;
     lai_nsnode_t *node = NULL;
     while ((node = lai_ns_iterate(&it))) {
         ComPrint("[ACPI] Node: %s\n", lai_stringify_node_path(node));
     }
-    */
+#endif
 
     PciInitialize(mcfg);
 }
@@ -124,6 +193,8 @@ void *laihost_map(size_t address, size_t count) {
 }
 
 void laihost_unmap(void *address, size_t count) {
+    (void) address;
+    (void) count;
     ComPrint("[LAI] Unmapping is not supported!\n");
 }
 
@@ -235,5 +306,6 @@ void laihost_pci_writed(uint16_t seg, uint8_t bus, uint8_t slot, uint8_t func, u
 }
 
 void laihost_sleep(uint64_t ms) {
+    (void) ms;
     ComPrint("[LAI] Sleep is not supported!\n");
 }

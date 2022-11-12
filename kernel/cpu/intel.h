@@ -51,13 +51,17 @@ typedef struct __attribute__((packed)) {
 } GlobalDescriptorTableDescriptor;
 
 typedef struct __attribute__((packed)) {
-    uint16_t isr_low;
-    uint16_t kernel_cs;
-    uint8_t ist;
-    uint8_t attributes;
-    uint16_t isr_mid;
-    uint32_t isr_high;
-    uint32_t reserved;
+    uint64_t offset0 : 16;
+    uint64_t selector : 16;
+    uint64_t ist : 3;
+    uint64_t : 5;
+    uint64_t type : 4;
+    uint64_t : 1;
+    uint64_t dpl : 2;
+    uint64_t present : 1;
+    uint64_t offset1 : 16;
+    uint64_t offset2 : 32;
+    uint64_t : 32;
 } InterruptDescriptor;
 
 typedef struct __attribute__((packed)) {
@@ -65,19 +69,35 @@ typedef struct __attribute__((packed)) {
     void *base;
 } InterruptTableDescriptor;
 
-#define PIC1_COMMAND 0x20
-#define PIC1_DATA 0x21
-#define PIC2_COMMAND 0xA0
-#define PIC2_DATA 0xA1
-#define PIC_EOI 0x20
+// X86-64 Registers
+typedef struct Registers {
+    uint64_t rax;
+    uint64_t rbx;
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t rbp;
+    uint64_t r8;
+    uint64_t r9;
+    uint64_t r10;
+    uint64_t r11;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+} Registers;
 
-#define ICW1_INIT 0x10
-#define ICW1_ICW4 0x01
-#define ICW4_8086 0x01
+#define GATE_CALL 0xC
+#define GATE_INTR 0xE
+#define GATE_TRAP 0xF
 
+void IntelSetInterrupt(int interrupt, void *handler, uint16_t type);
 
 void IntelInitialize(uint64_t kernel_stack);
-void IntelRemapPic(void);
+
+void *IntelGetCR3(void);
+void IntelSetCR3(void *cr3);
 
 static inline uint8_t IoIn8(uint16_t port) {
     uint8_t ret;

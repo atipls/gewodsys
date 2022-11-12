@@ -1829,13 +1829,13 @@ static lai_api_error_t lai_exec_process(lai_state_t *state) {
                             return LAI_ERROR_EXECUTION_FAILURE;
                         curr_off += skip_bits;
                         break;
-                    case 1:// AccessField
+                    case 1:// AccessField :=
                         pc++;
                         access_type = *(method + pc);
                         pc += 2;
                         break;
-                    case 2: // TODO: ConnectField
-                        lai_panic("ConnectField parsing isn't implemented");
+                    case 2: // ConnectField := NameString
+                        lai_panic("ConnectField not implemented, 1838");
                         break;
                     default: // NamedField
                         // TODO: Partially failing to parse a Field() is a bad idea.
@@ -2902,8 +2902,9 @@ static lai_api_error_t lai_exec_parse(int parse_mode, lai_state_t *state) {
                         access_type = *(method + pc);
                         pc += 2;
                         break;
-                    case 2: // TODO: ConnectField
-                        lai_panic("ConnectField parsing isn't implemented");
+                    case 2: // ConnectField
+                        // TODO: Implement ConnectField
+                        pc++;
                         break;
                     default: // NamedField
                              // TODO: Partially failing to parse a Field() is a bad idea.
@@ -2970,7 +2971,7 @@ static lai_api_error_t lai_exec_parse(int parse_mode, lai_state_t *state) {
                         pc += 2;
                         break;
                     case 2: // TODO: ConnectField
-                        lai_panic("ConnectField parsing isn't implemented");
+                        lai_panic("ConnectField parsing isn't implemented, 2973");
                         break;
                     default: // NamedField
                         // TODO: Partially failing to parse a Field() is a bad idea.
