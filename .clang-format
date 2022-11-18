@@ -64,3 +64,6 @@ SpacesInParentheses: false
 SpacesInSquareBrackets: false
 TabWidth: 4
 UseTab: Never
+TypenameMacros:
+  - LIST_ENTRY
+  - LIST_HEAD

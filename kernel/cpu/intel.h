@@ -69,30 +69,27 @@ typedef struct __attribute__((packed)) {
     void *base;
 } InterruptTableDescriptor;
 
-// X86-64 Registers
-typedef struct Registers {
-    uint64_t rax;
-    uint64_t rbx;
-    uint64_t rcx;
-    uint64_t rdx;
-    uint64_t rsi;
-    uint64_t rdi;
-    uint64_t rbp;
-    uint64_t r8;
-    uint64_t r9;
-    uint64_t r10;
-    uint64_t r11;
-    uint64_t r12;
-    uint64_t r13;
-    uint64_t r14;
-    uint64_t r15;
-} Registers;
+
+typedef struct {
+    uint64_t rax, rbx, rcx, rdx;
+    uint64_t rdi, rsi, rbp;
+    uint64_t r8, r9, r10, r11;
+    uint64_t r12, r13, r14, r15;
+} CpuRegisters;
+
+typedef struct CpuStack {
+    uint64_t rip;
+    uint64_t cs;
+    uint64_t rflags;
+    uint64_t rsp;
+    uint64_t ss;
+} CpuStack;
 
 #define GATE_CALL 0xC
 #define GATE_INTR 0xE
 #define GATE_TRAP 0xF
 
-void IntelSetInterrupt(int interrupt, void *handler, uint16_t type);
+void IntelSetInterrupt(int interrupt, uint64_t handler, uint16_t type);
 
 void IntelInitialize(uint64_t kernel_stack);
 
@@ -125,7 +122,6 @@ static inline uint32_t IoIn32(uint16_t port) {
 
 static inline void IoOut8(uint16_t port, uint8_t val) {
     __asm__ volatile("outb %0, %1" ::"a"(val), "Nd"(port));
-
 }
 
 static inline void IoOut16(uint16_t port, uint16_t val) {

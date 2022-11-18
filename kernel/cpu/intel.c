@@ -18,15 +18,15 @@
 
 __attribute__((aligned(0x1000))) static InterruptDescriptor kIntelIDT[256];
 __attribute__((aligned(0x1000))) static GlobalDescriptorTable kIntelGDT = {
-        {0, 0, 0, 0, 0, 0},            // null
-        {0xFFFF, 0, 0, 0x9A, 0x80, 0}, // 16-bit code
-        {0xFFFF, 0, 0, 0x92, 0x80, 0}, // 16-bit data
-        {0xFFFF, 0, 0, 0x9A, 0xCF, 0}, // 32-bit code
-        {0xFFFF, 0, 0, 0x92, 0xCF, 0}, // 32-bit data
-        {0x0000, 0, 0, 0x9A, 0xA2, 0}, // 64-bit code
-        {0x0000, 0, 0, 0x92, 0xA0, 0}, // 64-bit data
-        {0x0000, 0, 0, 0xF2, 0x00, 0}, // user data
-        {0x0000, 0, 0, 0xFA, 0x20, 0}, // user code
+        {0, 0, 0, 0, 0, 0},                // null
+        {0xFFFF, 0, 0, 0x9A, 0x80, 0},     // 16-bit code
+        {0xFFFF, 0, 0, 0x92, 0x80, 0},     // 16-bit data
+        {0xFFFF, 0, 0, 0x9A, 0xCF, 0},     // 32-bit code
+        {0xFFFF, 0, 0, 0x92, 0xCF, 0},     // 32-bit data
+        {0x0000, 0, 0, 0x9A, 0xA2, 0},     // 64-bit code
+        {0x0000, 0, 0, 0x92, 0xA0, 0},     // 64-bit data
+        {0x0000, 0, 0, 0xF2, 0x00, 0},     // user data
+        {0x0000, 0, 0, 0xFA, 0x20, 0},     // user code
         {0x0068, 0, 0, 0x89, 0x20, 0, 0, 0}// tss
 };
 
@@ -42,15 +42,15 @@ static GlobalDescriptorTableDescriptor kIntelGDTR = {
 
 static TaskStateSegment kIntelTSS;
 
-extern __attribute__((interrupt)) void IsrPicHandlerDefault(void *);
+extern uintptr_t kIntelIsrTable;
 
-void IntelSetInterrupt(int interrupt, void *handler, uint16_t type) {
+void IntelSetInterrupt(int interrupt, uint64_t handler, uint16_t type) {
     InterruptDescriptor *idt = &kIntelIDT[interrupt];
     RtZeroMemory(idt, sizeof(InterruptDescriptor));
 
-    idt->offset0 = (uint16_t) ((uint64_t) handler & 0xFFFF);
-    idt->offset1 = (uint16_t) (((uint64_t) handler >> 16) & 0xFFFF);
-    idt->offset2 = (uint32_t) (((uint64_t) handler >> 32) & 0xFFFFFFFF);
+    idt->offset0 = (uint16_t) (handler & 0xFFFF);
+    idt->offset1 = (uint16_t) ((handler >> 16) & 0xFFFF);
+    idt->offset2 = (uint32_t) ((handler >> 32) & 0xFFFFFFFF);
 
     idt->selector = KERNEL_CS;
     idt->type = type;
@@ -92,13 +92,11 @@ void IntelInitialize(uint64_t kernel_stack) {
 
     ComPrint("[CPU] TSS and GDT initialized.\n");
 
-    extern void *kIntelIsrTable[32];
-
-    for (int vector = 0; vector < 32; vector++)
-        IntelSetInterrupt(vector, kIntelIsrTable[vector], GATE_INTR);
-
-    for (int vector = 32; vector < 256; vector++)
-        IntelSetInterrupt(vector, IsrPicHandlerDefault, GATE_TRAP);
+    uint64_t isr_table = (uint64_t) &kIntelIsrTable;
+    for (int vector = 0; vector < 256; vector++) {
+        IntelSetInterrupt(vector, isr_table, GATE_INTR);
+        isr_table += 32;
+    }
 
     __asm__ volatile("lidt %0" ::"m"(kIntelIDTR));
 

@@ -15,8 +15,6 @@
 #include <cpu/lai/core/core.h>
 #include <cpu/lai/helpers/sci.h>
 
-#define ISA_NUM_IRQS 16
-
 static volatile struct limine_rsdp_request rsdp_request = {
         .id = LIMINE_RSDP_REQUEST,
         .revision = 0,
@@ -26,69 +24,6 @@ static volatile struct limine_smbios_request smbios_request = {
         .id = LIMINE_SMBIOS_REQUEST,
         .revision = 0,
 };
-
-#define ACPI_MADT_TYPE_LOCAL_APIC 0
-#define ACPI_MADT_TYPE_IO_APIC 1
-#define ACPI_MADT_TYPE_INT_SRC 2
-#define ACPI_MADT_TYPE_NMI_INT_SRC 3
-#define ACPI_MADT_TYPE_LAPIC_NMI 4
-#define ACPI_MADT_TYPE_APIC_OVERRIDE 5
-
-typedef struct __attribute__((packed)) {
-    uint8_t type;
-    uint8_t length;
-} AcpiMadtEntry;
-
-typedef struct __attribute__((packed)) {
-    AcpiMadtEntry header;
-    uint8_t acpi_processor_uid;
-    uint8_t apic_id;
-    uint32_t flags;
-} AcpiMadtLocalApic;
-
-typedef struct __attribute__((packed)) {
-    AcpiMadtEntry header;
-    uint8_t bus;
-    uint8_t source;
-    uint32_t global_system_interrupt;
-    uint16_t flags;
-} AcpiMadtInterruptOverride;
-
-
-static void AcpiInitializeMadt(AcpiMadt *madt) {
-    AcpiMadtInterruptOverride *overrides[ISA_NUM_IRQS] = {0};
-
-    if (madt->flags & 1) {
-        ComPrint("[ACPI] MADT PCAT Compatibility mode.\n");
-
-        // Disable legacy PIC
-        IoOut8(0x21, 0xFF);
-        IoOut8(0xA1, 0xFF);
-
-        for (int irq = 0; irq < ISA_NUM_IRQS; irq++)
-            overrides[irq] = 0;
-    }
-
-    AcpiMadtEntry *entries = (AcpiMadtEntry *) (madt + 1);
-    for (AcpiMadtEntry *entry = entries;
-         (uint8_t *) entry < (uint8_t *) madt + madt->header.length;
-         entry = (AcpiMadtEntry *) ((uint8_t *) entry + entry->length)) {
-
-        switch (entry->type) {
-            case ACPI_MADT_TYPE_LOCAL_APIC: {
-                AcpiMadtLocalApic *lapic = (AcpiMadtLocalApic *) entry;
-
-
-                break;
-            }
-            case ACPI_MADT_TYPE_IO_APIC: break;
-            case ACPI_MADT_TYPE_INT_SRC: break;
-            case ACPI_MADT_TYPE_NMI_INT_SRC: break;
-            case ACPI_MADT_TYPE_LAPIC_NMI: break;
-            case ACPI_MADT_TYPE_APIC_OVERRIDE: break;
-        }
-    }
-}
 
 static void AcpiInitializeFadt(AcpiFadt *fadt) {
 }
@@ -125,7 +60,7 @@ void AcpiInitialize(void) {
 
     ComPrint("[ACPI] MADT: 0x%X, FADT: 0x%X, HPET: 0x%X, MCFG: 0x%X\n", madt, fadt, hpet, mcfg);
 
-    AcpiInitializeMadt(madt);
+    ApicInitialize(madt);
     AcpiInitializeFadt(fadt);
 
 #ifdef ACPI_USE_LAI

@@ -223,3 +223,63 @@ void PciMaybeEnableMemoryAccess(PciDevice *device) {
     command |= (1 << 1);
     PciWrite16(device, 4, command);
 }
+
+void PciEnableMsiVector(PciDevice *device, uint8_t index, uint8_t vector) {
+
+}
+
+void PciDisableMsiVector(PciDevice *device, uint8_t index) {
+
+}
+
+/*
+
+
+void PciEnableMsiVector(pcie_device_t *device, uint8_t index, uint8_t vector) {
+  pcie_cap_msix_t *msix_cap = pcie_get_cap(device, PCI_CAP_MSIX);
+  if (msix_cap == NULL) {
+    panic("[pcie] could not locate msix structure");
+  }
+
+// kprintf("pcie: msi index = %d\n", index);
+// kprintf("pcie: message control = %#b\n", ((pci_cap_msix_t *)((void *)msix_cap))->msg_ctrl);
+// kprintf("pcie: table size = %d\n", msix_cap->tbl_sz);
+
+uint16_t tbl_size = msix_cap->tbl_sz + 1;
+kassert(index < tbl_size);
+
+pcie_bar_t *bar = pcie_get_bar(device, msix_cap->bir);
+if (bar->virt_addr == 0) {
+    panic("[pcie] msix memory space not mapped");
+}
+
+pcie_msix_entry_t *table = (void *)(bar->virt_addr + (msix_cap->tbl_ofst << 3));
+pcie_msix_entry_t *entry = &table[index];
+
+entry->msg_addr = msi_msg_addr(PERCPU_ID);
+entry->msg_data = msi_msg_data(vector, 1, 0);
+entry->masked = 0;
+
+msix_cap->en = 1;
+}
+
+void pcie_disable_msi_vector(pcie_device_t *device, uint8_t index) {
+    pcie_cap_msix_t *msix_cap = pcie_get_cap(device, PCI_CAP_MSIX);
+    if (msix_cap == NULL) {
+        panic("[pcie] could not locate msix structure");
+    }
+
+    uint16_t tbl_size = msix_cap->tbl_sz + 1;
+    kassert(index < tbl_size);
+
+    pcie_bar_t *bar = pcie_get_bar(device, msix_cap->bir);
+    if (bar->virt_addr == 0) {
+        panic("[pcie] msix memory space not mapped");
+    }
+
+    pcie_msix_entry_t *table = (void *)(bar->virt_addr + (msix_cap->tbl_ofst << 3));
+    table[index].masked = 1;
+}
+
+
+ */

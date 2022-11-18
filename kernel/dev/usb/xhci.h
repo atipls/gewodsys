@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include <cpu/apic.h>
 #include <dev/pci.h>
 
 typedef volatile struct __attribute__((packed)) {
@@ -82,6 +83,10 @@ typedef volatile struct {
     };
 } XhciInterrupterRegisters;
 
+enum {
+    kImanInterruptPending = 1 << 0,
+};
+
 typedef volatile struct __attribute__((packed)) {
     uint32_t mfindex : 16;
     uint32_t : 16;
@@ -127,27 +132,27 @@ enum {
 };
 
 typedef volatile struct {
-    uint32_t : 32;         // reserved
-    uint32_t : 32;         // reserved
-    uint32_t : 32;         // reserved
-    uint32_t cycle : 1;    // cycle bit
-    uint32_t : 9;          // reserved
-    uint32_t trb_type : 6; // trb type
-    uint32_t : 16;         // reserved
+    uint32_t : 32;        // reserved
+    uint32_t : 32;        // reserved
+    uint32_t : 32;        // reserved
+    uint32_t cycle : 1;   // cycle bit
+    uint32_t : 9;         // reserved
+    uint32_t trb_type : 6;// trb type
+    uint32_t : 16;        // reserved
 } XhciTrb;
 
 typedef struct {
-    uint64_t rs_addr;          // ring segment base address
-    uint32_t : 24;             // reserved
-    uint32_t target : 8;       // interrupter target
-    uint32_t cycle : 1;        // cycle bit
-    uint32_t toggle_cycle : 1; // evaluate next trb
-    uint32_t : 2;              // reserved
-    uint32_t ch : 1;           // chain bit
-    uint32_t ioc : 1;          // interrupt on completion
-    uint32_t : 4;              // reserved
-    uint32_t trb_type : 6;     // trb type
-    uint32_t : 16;             // reserved
+    uint64_t rs_addr;         // ring segment base address
+    uint32_t : 24;            // reserved
+    uint32_t target : 8;      // interrupter target
+    uint32_t cycle : 1;       // cycle bit
+    uint32_t toggle_cycle : 1;// evaluate next trb
+    uint32_t : 2;             // reserved
+    uint32_t ch : 1;          // chain bit
+    uint32_t ioc : 1;         // interrupt on completion
+    uint32_t : 4;             // reserved
+    uint32_t trb_type : 6;    // trb type
+    uint32_t : 16;            // reserved
 } XhciTrbLink;
 
 typedef volatile struct {
@@ -158,6 +163,47 @@ typedef volatile struct {
 } XhciRing;
 
 
+typedef struct {
+    uint64_t rs_addr;
+    uint32_t rs_size;
+    uint32_t : 32;
+} XhciErstEntry;
+
+typedef struct {
+    uint8_t index;
+    uint8_t vector;
+    XhciErstEntry *erst;
+    XhciRing *ring;
+} XhciInterrupter;
+
+
+#define CMD_RING_SIZE 256
+#define EVT_RING_SIZE 256
+#define XFER_RING_SIZE 256
+#define ERST_SIZE 1
+
+#define INTERRUPT_BM_GET(dev, i) (dev->interrupt_bitmap[i / 8] & (1 << (i % 8)))
+#define INTERRUPT_BM_SET(dev, i) (dev->interrupt_bitmap[i / 8] |= (1 << (i % 8)))
+#define INTERRUPT_BM_CLR(dev, i) (dev->interrupt_bitmap[i / 8] &= ~(1 << (i % 8)))
+
+typedef struct {
+    PciDevice *pci;
+    void *volatile mmio;
+    XhciCapabilityRegisters *volatile cap;
+    XhciOperationalRegisters *volatile op;
+    XhciRuntimeRegisters *volatile rt;
+    XhciDoorbellRegister *volatile db;
+    uint64_t dcbaap;
+
+    uint64_t interrupter_bitmap_size;
+    uint8_t *interrupter_bitmap;
+
+    XhciInterrupter *interrupter;
+
+    XhciRing *cmd;
+    XhciRing *evt;
+} XhciDevice;
+
 XhciRing *XhciRingCreate(uint64_t size);
 void XhciRingDestroy(XhciRing *ring);
 
@@ -166,5 +212,7 @@ int XhciRingGet(XhciRing *ring, XhciTrb *trb);
 
 uint64_t XhciRingGetPhysicalAddress(XhciRing *ring);
 uint64_t XhciRingSize(XhciRing *ring);
+
+XhciInterrupter *XhciInterrupterCreate(XhciDevice *xhci, IrqHandlerFn handler, void *data);
 
 extern PciDriver kXhciDriver;

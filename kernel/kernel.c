@@ -4,11 +4,12 @@
 
 #include "limine.h"
 #include <cpu/acpi.h>
+#include <cpu/apic.h>
 #include <cpu/intel.h>
 
+#include <mem/heap.h>
 #include <mem/pmm.h>
 #include <mem/vmm.h>
-#include <mem/heap.h>
 
 #include <tsk/sched.h>
 
@@ -36,6 +37,15 @@ static void TestTask2() {
     }
 }
 
+void TimerHandler(uint8_t irq, void *data) {
+    ComPrint("[INTR] Timer!!!!!!!\n");
+}
+
+void Ps2KeyboardHandler(uint8_t irq, void *data) {
+    uint8_t keyboard = IoIn8(0x60);
+    ComPrint("Keyboard: %x\n", keyboard);
+}
+
 #if 0
 // Entry-point for secondary cores
 static void KeSMPMain(struct limine_smp_info *info) {
@@ -52,7 +62,7 @@ static void KeSMPMain(struct limine_smp_info *info) {
 void KeMain(void) {
     uint64_t stack = 0;
     __asm__ volatile("mov %%rsp, %0"
-                     : "=r"(stack) :: "memory");
+                     : "=r"(stack)::"memory");
 
     ComPrint("[KERNEL] Primary core started.\n");
 
@@ -65,6 +75,14 @@ void KeMain(void) {
     TskInitialize();
 
     AcpiInitialize();
+
+    // Set up the PS/2 keyboard as a test
+    ApicRegisterIrqHandler(1, Ps2KeyboardHandler, 0);
+    ApicEnableInterrupt(1);
+
+    ApicRegisterIrqHandler(0, Ps2KeyboardHandler, 0);
+    ApicEnableInterrupt(0);
+
 
     TskCreateKernelTask("Test Task 1", TestTask1);
     TskCreateKernelTask("Test Task 2", TestTask2);

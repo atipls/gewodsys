@@ -1,4 +1,4 @@
-QEMU_OPTIONS = -M q35 -m 512M -smp 4 -serial stdio -d cpu_reset -d int -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0,port=1 -no-reboot -no-shutdown -monitor telnet:127.0.0.1:1234,server,nowait
+QEMU_OPTIONS = -M q35 -m 512M -smp 4 -serial stdio -d cpu_reset -d int -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0,port=1 -no-reboot -no-shutdown -monitor telnet:127.0.0.1:1235,server,nowait
 QEMU_OPTIONS += -device virtio-gpu-pci
 
 

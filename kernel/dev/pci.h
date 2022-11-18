@@ -55,3 +55,6 @@ void PciInitialize(AcpiMcfg *mcfg);
 
 void PciMaybeEnableBusMastering(PciDevice *device);
 void PciMaybeEnableMemoryAccess(PciDevice *device);
+
+void PciEnableMsiVector(PciDevice *device, uint8_t index, uint8_t vector);
+void PciDisableMsiVector(PciDevice *device, uint8_t index);
