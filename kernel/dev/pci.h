@@ -34,6 +34,8 @@ typedef struct PciDriver {
     const char *name;
     PciDevice device;
 
+    void *data;
+
     uint8_t (*try_probe)(PciDevice *);
     void (*initialize)(struct PciDriver *);
     void (*finalize)(struct PciDriver *);

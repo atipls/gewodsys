@@ -56,7 +56,6 @@ Task *TskCreateKernelTask(const char *name, TaskEntry entry) {
     return task;
 }
 
-
 void TskSchedule(void) {
     if (!kTask) {
         kTask = kTasks;
