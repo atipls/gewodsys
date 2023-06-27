@@ -3,6 +3,11 @@
 #include <stdint.h>
 #include <cpu/acpi.h>
 
+enum {
+    kPciBarTypeMemory = 0,
+    kPciBarTypeIo = 1,
+};
+
 typedef struct PciBar {
     uint64_t base;
     uint64_t size;
@@ -41,6 +46,9 @@ typedef struct PciDriver {
     void (*finalize)(struct PciDriver *);
 } PciDriver;
 
+#define PCI_CAP_MSI      0x05
+#define PCI_CAP_MSIX     0x11
+
 extern PciDriver *kPciDrivers[];
 
 uint8_t PciRead8(PciDevice *device, uint8_t offset);
@@ -52,6 +60,8 @@ void PciWrite16(PciDevice *device, uint8_t offset, uint16_t value);
 void PciWrite32(PciDevice *device, uint8_t offset, uint32_t value);
 
 void PciInitialize(AcpiMcfg *mcfg);
+
+void PciReadBar(PciDevice *device, uint8_t bar, PciBar *out);
 
 void PciMaybeEnableBusMastering(PciDevice *device);
 void PciMaybeEnableMemoryAccess(PciDevice *device);

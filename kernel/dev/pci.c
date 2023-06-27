@@ -52,24 +52,6 @@ void PciWrite32(PciDevice *device, uint8_t offset, uint32_t value) {
     PciWrite16(device, offset + 2, (uint16_t) (value >> 16) & 0xFFFF);
 }
 
-void PciGetBar(PciDevice *device, uint32_t bar, uint64_t *address) {
-    uint16_t bar_address = 0x10 + (bar * 4);
-    uint32_t bar_value = PciRead32(device, bar_address);
-
-    if (bar_value & 0x1) {
-        *address = bar_value & 0xFFFFFFFC;
-    } else {
-        *address = bar_value & 0xFFFFFFF0;
-    }
-
-    if (bar_value & 0x4) {
-        uint32_t bar_value_upper = PciRead32(device, bar_address + 4);
-        *address |= ((uint64_t) bar_value_upper) << 32;
-    }
-
-    ComPrint("[PCI] BAR %d: %X", bar, *address);
-}
-
 static const char *PciDeviceClasses[] = {
         "Unclassified",
         "Mass Storage Controller",
@@ -206,6 +188,30 @@ void PciInitialize(AcpiMcfg *mcfg) {
     }
 }
 
+void PciReadBar(PciDevice *device, uint8_t bar, PciBar *out) {
+    uint64_t bar_base = PciRead32(device, 0x10 + bar * 4);
+    if (bar_base & kPciBar64) {
+        bar_base |= PciRead32(device, 0x10 + bar * 4 + 4) << 32;
+        bar_base &= ~0xF;
+
+        out->base = bar_base;
+        out->type = kPciBarTypeMemory;
+        out->size = 0;
+
+        return;
+    }
+
+    if (bar_base & kPciBarIo) {
+        bar_base &= ~0x3;
+
+        out->base = bar_base;
+        out->type = kPciBarTypeIo;
+        out->size = 0;
+
+        return;
+    }
+}
+
 void PciMaybeEnableBusMastering(PciDevice *device) {
     uint16_t command = PciRead16(device, 4);
     if (command & (1 << 2))
@@ -222,14 +228,6 @@ void PciMaybeEnableMemoryAccess(PciDevice *device) {
 
     command |= (1 << 1);
     PciWrite16(device, 4, command);
-}
-
-void PciEnableMsiVector(PciDevice *device, uint8_t index, uint8_t vector) {
-
-}
-
-void PciDisableMsiVector(PciDevice *device, uint8_t index) {
-
 }
 
 /*

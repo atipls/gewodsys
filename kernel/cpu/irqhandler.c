@@ -138,31 +138,6 @@ int ApicDisableInterrupt(uint8_t irq) {
 }
 
 
-int ApicEnableMsiInterrupt(uint8_t irq, uint8_t index, PciDevice *device) {
-    if (irq > IRQ_NUM_VECTORS - IRQ_VECTOR_BASE)
-        return -1;
-
-    int result = ApicEnableInterrupt(irq);
-    if (result < 0)
-        return result;
-
-    uint8_t vector = irq + IRQ_VECTOR_BASE;
-    PciEnableMsiVector(device, index, vector);
-    return 0;
-}
-
-int ApicDisableMsiInterrupt(uint8_t irq, uint8_t index, PciDevice *device) {
-    if (irq > IRQ_NUM_VECTORS - IRQ_VECTOR_BASE)
-        return -1;
-
-    int result = ApicDisableInterrupt(irq);
-    if (result < 0)
-        return result;
-
-    PciDisableMsiVector(device, index);
-    return 0;
-}
-
 static uint8_t ApicIrqMapToVector(uint8_t irq) {
     uint8_t vector = irq + IRQ_VECTOR_BASE;
     if (irq <= kApicHighestIrq) {
@@ -179,9 +154,9 @@ static uint8_t ApicIrqMapToVector(uint8_t irq) {
 
 int ApicAllocateSoftwareIrq() {
     for (int bm = 0; bm < IRQ_NUM_VECTORS; bm++) {
-        if (SW_BITMAP_GET(bm)) {
+        if (!SW_BITMAP_GET(bm)) {
             SW_BITMAP_SET(bm);
-            return bm;
+            return bm + kApicHighestIrq + 1;
         }
     }
 

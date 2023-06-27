@@ -23,6 +23,3 @@ int ApicDisableInterrupt(uint8_t irq);
 int ApicAllocateSoftwareIrq();
 
 void ApicRegisterIrqHandler(uint8_t irq, IrqHandlerFn handler, void *data);
-
-int ApicEnableMsiInterrupt(uint8_t irq, uint8_t index, PciDevice *device);
-int ApicDisableMsiInterrupt(uint8_t irq, uint8_t index, PciDevice *device);

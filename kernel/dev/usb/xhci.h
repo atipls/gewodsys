@@ -193,6 +193,7 @@ typedef struct {
     XhciOperationalRegisters *volatile op;
     XhciRuntimeRegisters *volatile rt;
     XhciDoorbellRegister *volatile db;
+    void *volatile xcap;
     uint64_t dcbaap;
 
     uint64_t interrupter_bitmap_size;
@@ -203,6 +204,9 @@ typedef struct {
     XhciRing *cmd;
     XhciRing *evt;
 } XhciDevice;
+
+#define INTERRUPTER_BITMAP_GET(dev, i) (dev->interrupter_bitmap[i / 8] & (1 << (i % 8)))
+#define INTERRUPTER_BITMAP_SET(dev, i) (dev->interrupter_bitmap[i / 8] |= (1 << (i % 8)))
 
 XhciRing *XhciRingCreate(uint64_t size);
 void XhciRingDestroy(XhciRing *ring);

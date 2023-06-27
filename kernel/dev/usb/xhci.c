@@ -3,6 +3,24 @@
 #include <mem/vmm.h>
 #include <utl/serial.h>
 
+#define XCAP_ID(v) (((uint32_t) (v)) & 0xFF)
+#define XCAP_NEXT(v) (((((uint32_t) (v)) >> 8) & 0xFF) << 2)
+
+typedef union {
+    uint32_t raw;
+    struct {
+        uint32_t bir : 3;
+        uint32_t off : 29;
+    };
+} XhciCapMsix;
+
+typedef volatile struct {
+    uint64_t msg_addr;
+    uint32_t msg_data;
+    uint32_t masked : 1;
+    uint32_t : 31;
+} XhciMsixEntry;
+
 static void XhciHostIrq(uint8_t irq, void *data);
 
 static uint8_t XhciTryProbe(PciDevice *device) {
@@ -34,7 +52,9 @@ static void XhciInitialize(PciDriver *driver) {
     xhci->op = (XhciOperationalRegisters *) (mmio_base + xhci->cap->length);
     xhci->rt = (XhciRuntimeRegisters *) (mmio_base + xhci->cap->run_regs_off);
     xhci->db = (XhciDoorbellRegister *) (mmio_base + xhci->cap->doorbell_offset);
+    xhci->xcap = (void *) (mmio_base + ((((xhci->cap->hcc_params1) >> 16) & 0xFFF) << 2));
 
+    ComPrint("[XHCI] XCAP: 0x%X\n", xhci->xcap);
 
     // Reset the controller.
     xhci->op->usb_command &= ~kUsbCmdRun;
@@ -57,8 +77,10 @@ static void XhciInitialize(PciDriver *driver) {
     // Set up the command ring.
     xhci->cmd = XhciRingCreate(CMD_RING_SIZE);
 
-    xhci->interrupter_bitmap_size = (xhci->cap->hcs_params1 >> 27) & 0x1F;
-    xhci->interrupter_bitmap = kmalloc(xhci->interrupter_bitmap_size / 8);
+    xhci->interrupter_bitmap_size = (xhci->cap->hcs_params1 >> 8) & 0x7FF;
+    ComPrint("[XHCI] Interrupter bitmap size: %d\n", xhci->interrupter_bitmap_size);
+    xhci->interrupter_bitmap = (uint8_t *) kmalloc(xhci->interrupter_bitmap_size / 8);
+    RtZeroMemory(xhci->interrupter_bitmap, xhci->interrupter_bitmap_size / 8);
 
     xhci->interrupter = XhciInterrupterCreate(xhci, XhciHostIrq, xhci);
 }
@@ -141,24 +163,66 @@ uint64_t XhciRingSize(XhciRing *ring) {
 
 XhciInterrupter *XhciInterrupterCreate(XhciDevice *xhci, IrqHandlerFn handler, void *data) {
     // Find a free interrupter.
-    uint64_t interrupt_index = 0xFFFFFFFFFFFFFFFF;
-    for (uint64_t i = 0; i < xhci->interrupter_bitmap_size; i++) {
-        if (!(xhci->interrupter_bitmap[i / 8] & (1 << (i % 8)))) {
-            xhci->interrupter_bitmap[i / 8] |= 1 << (i % 8);
-            interrupt_index = i;
+    int interrupter_index = -1;
+    for (int i = 0; i < xhci->interrupter_bitmap_size; i++) {
+        if (!INTERRUPTER_BITMAP_GET(xhci, i)) {
+            interrupter_index = i;
             break;
         }
     }
 
-    if (interrupt_index == 0xFFFFFFFFFFFFFFFF)
+    if (interrupter_index == -1)
         return 0;
 
+    INTERRUPTER_BITMAP_SET(xhci, interrupter_index);
+
     int irq = ApicAllocateSoftwareIrq();
+    ComPrint("[XHCI] Allocated IRQ %d for interrupter %d\n", irq, interrupter_index);
     if (irq == -1)
         return 0;
 
     ApicRegisterIrqHandler(irq, handler, data);
-    PciEnableMessageSignaledInterrupt(irq, interrupt_index, xhci->pci);
+    ApicEnableInterrupt(irq);
+
+    uintptr_t msix = 0;
+
+    uint32_t capabilities_address = PciRead32(xhci->pci, 0x34) & 0xFF;
+    uint32_t capability = PciRead32(xhci->pci, capabilities_address);
+    while (1) {
+        // We found the MSI-X capability.
+        if (XCAP_ID(capability) == 0x11) {
+            XhciCapMsix msix_capability = {.raw = PciRead32(xhci->pci, capabilities_address + 0x4)};
+            if (msix_capability.bir != 0)
+                ComPrint("[XHCI] MSI-X BIR is not 0! (%d). This will blow up.\n", msix_capability.bir);
+
+            msix = (uintptr_t) (xhci->mmio + msix_capability.off);
+
+            // Enable MSI-X.
+            capability |= 0x8000;
+            PciWrite32(xhci->pci, capabilities_address, capability);
+            break;
+        }
+
+        if (XCAP_NEXT(capability) == 0)
+            break;
+
+        capabilities_address += XCAP_NEXT(capability);
+        capability = PciRead32(xhci->pci, capabilities_address);
+    }
+
+    if (!msix) {
+        ComPrint("[XHCI] Could not find MSI-X capability!\n");
+        return 0;
+    }
+
+    // Set up the MSI-X table entry.
+    XhciMsixEntry *table = (XhciMsixEntry *) msix;
+    XhciMsixEntry *entry = &table[interrupter_index];
+
+    entry->msg_addr = 0xFEE00000 | (0 << 12); // Hardcoded to CPU0.
+    entry->msg_data = irq;
+    entry->masked = 0;
+
 
     XhciErstEntry *erst = (XhciErstEntry *) kmalloc(ERST_SIZE * sizeof(XhciErstEntry));
     XhciRing *ring = XhciRingCreate(EVT_RING_SIZE);
@@ -168,7 +232,7 @@ XhciInterrupter *XhciInterrupterCreate(XhciDevice *xhci, IrqHandlerFn handler, v
 
     XhciInterrupter *interrupter = (XhciInterrupter *) kmalloc(sizeof(XhciInterrupter));
 
-    interrupter->index = interrupt_index;
+    interrupter->index = interrupter_index;
     interrupter->vector = irq;
     interrupter->ring = ring;
     interrupter->erst = erst;
